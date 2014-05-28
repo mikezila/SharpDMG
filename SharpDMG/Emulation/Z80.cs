@@ -35,6 +35,7 @@ namespace SharpDMG.Emulation
         public int m { get; private set; }
         public int t { get { return m * 4; } }
 
+        #region Shortcut properites for double registers and next byte/word
         bool ZeroFlag
         {
             get { return TestBit(f, 7); }
@@ -77,6 +78,17 @@ namespace SharpDMG.Emulation
             set { h = (byte)((value >> 8) & 0xFF); l = (byte)(value & 0xFF); }
         }
 
+        byte NextByte
+        {
+            get { return cartridge.ReadByte(PC++); }
+        }
+
+        short NextWord
+        {
+            get { return (short)(NextByte + (NextByte << 8)); }
+        }
+        #endregion
+
         public Z80()
         {
             cartridge = new EmulatedCartridge("tetris.gb");
@@ -107,19 +119,20 @@ namespace SharpDMG.Emulation
             m = 1; // One m-time taken.
         }
 
-        private void LoadRegisterFromRegister(ref byte from, ref byte to)
+        #region 8-bit Load/Store Op Fuctions
+        private void LoadRegisterFromRegister(ref byte to, byte from)
         {
             to = from;
             m = 1; // One m-time taken.
         }
 
-        private void LoadRegisterFromAddress(ref short address, ref byte register)
+        private void LoadRegisterFromAddress(ref byte register, short address)
         {
             register = cartridge.ReadByte(address);
             m = 2; // Two m-time taken.
         }
 
-        private void LoadMemoryFromRegister(ref short address, ref byte register)
+        private void LoadMemoryFromRegister(short address, byte register)
         {
             cartridge.WriteByte(address, register);
             m = 2; // Two m-time taken.
@@ -127,10 +140,30 @@ namespace SharpDMG.Emulation
 
         private void LoadRegisterFromProgramCounter(ref byte register)
         {
-            register = cartridge.ReadByte(PC++);
+            register = NextByte;
             m = 2; // Two m-time taken. Etc.
         }
 
+        private void LoadMemoryFromProgramCounter(short address)
+        {
+            cartridge.WriteByte(address, NextByte);
+            m = 2;
+        }
+
+        private void ZPLoadRegisterFromMemory(ref byte register, byte address)
+        {
+            register = cartridge.ReadByte(0xFF00 + address);
+            m = 3;
+        }
+
+        private void ZPLoadMemoryFromRegister(byte address, byte register)
+        {
+            cartridge.WriteByte(0xFF00 + address, register);
+            m = 3;
+        }
+        #endregion
+
+        #region Bit level Ops
         private bool TestBit(byte subject, int bit)
         {
             return (subject & (1 << bit)) != 0;
@@ -145,14 +178,16 @@ namespace SharpDMG.Emulation
         {
             subject &= (byte)(~(1 << bit));
         }
+        #endregion
 
-        // Skeleton for what will be the main stepping method.
-        internal string StepDebug(byte opcode)
+        internal void Step()
         {
-            switch (cartridge.ReadByte(PC++))
+            switch (NextByte)
             {
                 // No Op
                 case 0x00:
+                    { NoOp(); break; }
+
                 case 0xD3:
                 case 0xDB:
                 case 0xDD:
@@ -164,7 +199,7 @@ namespace SharpDMG.Emulation
                 case 0xF4:
                 case 0xFC:
                 case 0xFD:
-                    return "No Operation.";
+                    { NoOp(); break; }
 
                 // Jumps and calls
 
@@ -181,7 +216,7 @@ namespace SharpDMG.Emulation
                 case 0xDC:
                     {
                         PC += 2;
-                        return "Three-byte Jump/Call.";
+                        break;
                     }
 
                 // Two byte ops
@@ -192,7 +227,7 @@ namespace SharpDMG.Emulation
                 case 0x38:
                     {
                         PC++;
-                        return "Two-byte Jump/Call.";
+                        break;
                     }
 
                 // One byte ops
@@ -211,28 +246,29 @@ namespace SharpDMG.Emulation
                 case 0xEF:
                 case 0xF7:
                 case 0xFF:
-                    return "One-byte Jump/Call.";
+                    break;
 
                 // Misc/Control Instructions
                 case 0x10:
                     {
+                        //CPU STOP
                         PC++; // FIXME: Maybe only one byte?
-                        return "CPU Stop.";
+                        break;
                     }
                 case 0x76:
                     {
                         Halted = true;
-                        return "CPU Halt.";
+                        break;
                     }
                 case 0xCB:
                     {
                         PC++;
-                        return "Extended CB bit-level Op.";
+                        break;
                     }
                 case 0xF3:
-                    return "Disable interupts.";
+                    break;
                 case 0xFB:
-                    return "Enable interupts.";
+                    break;
 
                 // 8-bit Math/Logic
 
@@ -321,7 +357,7 @@ namespace SharpDMG.Emulation
                 case 0xBD:
                 case 0xBE:
                 case 0xBF:
-                    return "One-byte 8-bit Math/Logic.";
+                    break;
 
                 // Two byte ops
                 case 0xC6:
@@ -334,110 +370,103 @@ namespace SharpDMG.Emulation
                 case 0xFE:
                     {
                         PC++;
-                        return "Two-byte 8-bit Math/Logic.";
+                        break;
                     }
 
+                # region 8-bit Load/Store/Move
                 // 8-bit Load/Store/Move
 
                 // Three byte ops
-                case 0xEA:
-                case 0xFA:
-                    {
-                        PC += 2;
-                        return "Three-byte 8-bit Load/Store/Move.";
-                    }
+                case 0xEA: { LoadMemoryFromRegister(NextWord, a); break; }
+                case 0xFA: { LoadRegisterFromAddress(ref a, NextWord); break; }
 
                 // Two byte ops
-                case 0x06:
-                case 0x0E:
-                case 0x16:
-                case 0x1E:
-                case 0x26:
-                case 0x2E:
-                case 0x36:
-                case 0x3E:
-                case 0xE0:
-                case 0xE2:
-                case 0xF0:
-                case 0xF2:
-                    {
-                        PC++;
-                        return "Two-byte 8-bit Load/Store/Move.";
-                    }
+                case 0x06: { LoadRegisterFromProgramCounter(ref b); break; }
+                case 0x0E: { LoadRegisterFromProgramCounter(ref c); break; }
+                case 0x16: { LoadRegisterFromProgramCounter(ref d); break; }
+                case 0x1E: { LoadRegisterFromProgramCounter(ref e); break; }
+                case 0x26: { LoadRegisterFromProgramCounter(ref h); break; }
+                case 0x2E: { LoadRegisterFromProgramCounter(ref l); break; }
+                case 0x36: { LoadMemoryFromProgramCounter(HL); break; }
+                case 0x3E: { LoadRegisterFromProgramCounter(ref a); break; }
+                case 0xE0: { ZPLoadMemoryFromRegister(NextByte, a); break; }
+                case 0xE2: { ZPLoadMemoryFromRegister(c, a); break; }
+                case 0xF0: { ZPLoadRegisterFromMemory(ref a, NextByte); break; }
+                case 0xF2: { ZPLoadRegisterFromMemory(ref a, c); break; }
 
                 // One byte ops
-                case 0x02:
-                case 0x0A:
-                case 0x12:
-                case 0x1A:
-                case 0x22:
-                case 0x2A:
-                case 0x32:
-                case 0x3A:
-                case 0x40:
-                case 0x41:
-                case 0x42:
-                case 0x43:
-                case 0x44:
-                case 0x45:
-                case 0x46:
-                case 0x47:
-                case 0x48:
-                case 0x49:
-                case 0x4A:
-                case 0x4B:
-                case 0x4C:
-                case 0x4D:
-                case 0x4E:
-                case 0x4F:
-                case 0x50:
-                case 0x51:
-                case 0x52:
-                case 0x53:
-                case 0x54:
-                case 0x55:
-                case 0x56:
-                case 0x57:
-                case 0x58:
-                case 0x59:
-                case 0x5A:
-                case 0x5B:
-                case 0x5C:
-                case 0x5D:
-                case 0x5E:
-                case 0x5F:
-                case 0x60:
-                case 0x61:
-                case 0x62:
-                case 0x63:
-                case 0x64:
-                case 0x65:
-                case 0x66:
-                case 0x67:
-                case 0x68:
-                case 0x69:
-                case 0x6A:
-                case 0x6B:
-                case 0x6C:
-                case 0x6D:
-                case 0x6E:
-                case 0x6F:
-                case 0x70:
-                case 0x71:
-                case 0x72:
-                case 0x73:
-                case 0x74:
-                case 0x75:
-                case 0x77:
-                case 0x78:
-                case 0x79:
-                case 0x7A:
-                case 0x7B:
-                case 0x7C:
-                case 0x7D:
-                case 0x7E:
-                case 0x7F:
-                    return "One-byte 8-bit Load/Store/Move.";
+                case 0x02: { LoadMemoryFromRegister(BC, a); break; }
+                case 0x0A: { LoadRegisterFromAddress(ref a, BC); break; }
+                case 0x12: { LoadMemoryFromRegister(DE, a); break; }
+                case 0x1A: { LoadRegisterFromAddress(ref a, DE); break; }
+                case 0x22: { LoadMemoryFromRegister(HL, a); HL++; break; }
+                case 0x2A: { LoadRegisterFromAddress(ref a, HL); HL++; break; }
+                case 0x32: { LoadMemoryFromRegister(HL, a); HL--; break; }
+                case 0x3A: { LoadRegisterFromAddress(ref a, HL); HL--; break; }
+                case 0x40: { LoadRegisterFromRegister(ref b, b); break; }
+                case 0x41: { LoadRegisterFromRegister(ref b, c); break; }
+                case 0x42: { LoadRegisterFromRegister(ref b, d); break; }
+                case 0x43: { LoadRegisterFromRegister(ref b, e); break; }
+                case 0x44: { LoadRegisterFromRegister(ref b, h); break; }
+                case 0x45: { LoadRegisterFromRegister(ref b, l); break; }
+                case 0x46: { LoadRegisterFromAddress(ref b, HL); break; }
+                case 0x47: { LoadRegisterFromRegister(ref b, a); break; }
+                case 0x48: { LoadRegisterFromRegister(ref c, b); break; }
+                case 0x49: { LoadRegisterFromRegister(ref c, c); break; }
+                case 0x4A: { LoadRegisterFromRegister(ref c, d); break; }
+                case 0x4B: { LoadRegisterFromRegister(ref c, e); break; }
+                case 0x4C: { LoadRegisterFromRegister(ref c, h); break; }
+                case 0x4D: { LoadRegisterFromRegister(ref c, l); break; }
+                case 0x4E: { LoadRegisterFromAddress(ref c, HL); break; }
+                case 0x4F: { LoadRegisterFromRegister(ref c, a); break; }
+                case 0x50: { LoadRegisterFromRegister(ref d, b); break; }
+                case 0x51: { LoadRegisterFromRegister(ref d, c); break; }
+                case 0x52: { LoadRegisterFromRegister(ref d, d); break; }
+                case 0x53: { LoadRegisterFromRegister(ref d, e); break; }
+                case 0x54: { LoadRegisterFromRegister(ref d, h); break; }
+                case 0x55: { LoadRegisterFromRegister(ref d, l); break; }
+                case 0x56: { LoadRegisterFromAddress(ref d, HL); break; }
+                case 0x57: { LoadRegisterFromRegister(ref d, a); break; }
+                case 0x58: { LoadRegisterFromRegister(ref e, b); break; }
+                case 0x59: { LoadRegisterFromRegister(ref e, c); break; }
+                case 0x5A: { LoadRegisterFromRegister(ref e, d); break; }
+                case 0x5B: { LoadRegisterFromRegister(ref e, e); break; }
+                case 0x5C: { LoadRegisterFromRegister(ref e, h); break; }
+                case 0x5D: { LoadRegisterFromRegister(ref e, l); break; }
+                case 0x5E: { LoadRegisterFromAddress(ref e, HL); break; }
+                case 0x5F: { LoadRegisterFromRegister(ref e, a); break; }
+                case 0x60: { LoadRegisterFromRegister(ref h, b); break; }
+                case 0x61: { LoadRegisterFromRegister(ref h, c); break; }
+                case 0x62: { LoadRegisterFromRegister(ref h, d); break; }
+                case 0x63: { LoadRegisterFromRegister(ref h, e); break; }
+                case 0x64: { LoadRegisterFromRegister(ref h, h); break; }
+                case 0x65: { LoadRegisterFromRegister(ref h, l); break; }
+                case 0x66: { LoadRegisterFromAddress(ref h, HL); break; }
+                case 0x67: { LoadRegisterFromRegister(ref h, a); break; }
+                case 0x68: { LoadRegisterFromRegister(ref l, b); break; }
+                case 0x69: { LoadRegisterFromRegister(ref l, c); break; }
+                case 0x6A: { LoadRegisterFromRegister(ref l, d); break; }
+                case 0x6B: { LoadRegisterFromRegister(ref l, e); break; }
+                case 0x6C: { LoadRegisterFromRegister(ref l, h); break; }
+                case 0x6D: { LoadRegisterFromRegister(ref l, l); break; }
+                case 0x6E: { LoadRegisterFromAddress(ref l, HL); break; }
+                case 0x6F: { LoadRegisterFromRegister(ref l, a); break; }
+                case 0x70: { LoadMemoryFromRegister(HL, b); break; }
+                case 0x71: { LoadMemoryFromRegister(HL, c); break; }
+                case 0x72: { LoadMemoryFromRegister(HL, d); break; }
+                case 0x73: { LoadMemoryFromRegister(HL, e); break; }
+                case 0x74: { LoadMemoryFromRegister(HL, h); break; }
+                case 0x75: { LoadMemoryFromRegister(HL, l); break; }
+                case 0x77: { LoadMemoryFromRegister(HL, a); break; }
+                case 0x78: { LoadRegisterFromRegister(ref a, b); break; }
+                case 0x79: { LoadRegisterFromRegister(ref a, c); break; }
+                case 0x7A: { LoadRegisterFromRegister(ref a, d); break; }
+                case 0x7B: { LoadRegisterFromRegister(ref a, e); break; }
+                case 0x7C: { LoadRegisterFromRegister(ref a, h); break; }
+                case 0x7D: { LoadRegisterFromRegister(ref a, l); break; }
+                case 0x7E: { LoadRegisterFromAddress(ref a, HL); break; }
+                case 0x7F: { LoadRegisterFromRegister(ref a, a); break; }
+                #endregion
 
                 // 16-bit Load/Store/Move
 
@@ -449,14 +478,14 @@ namespace SharpDMG.Emulation
                 case 0x31:
                     {
                         PC += 2;
-                        return "Three-byte 16-bit Load/Store/Move.";
+                        break;
                     }
 
                 // Two byte op
                 case 0xF8:
                     {
                         PC++;
-                        return "Two-byte 16-bit Load/Store/Move.";
+                        break;
                     }
 
                 // One byte ops
@@ -469,7 +498,7 @@ namespace SharpDMG.Emulation
                 case 0xF1:
                 case 0xF5:
                 case 0xF9:
-                    return "One-byte 16-bit Load/Store/Move.";
+                    break;
 
                 // 16-bit Math/Logic
 
@@ -486,12 +515,12 @@ namespace SharpDMG.Emulation
                 case 0x33:
                 case 0x39:
                 case 0x3B:
-                    return "One-byte 16-bit Math/Logic.";
+                    break;
 
                 case 0xE8:
                     {
                         PC++;
-                        return "Two-byte 16-bit Math/Logic.";
+                        break;
                     }
 
                 // Non-CB bit level ops
@@ -499,14 +528,14 @@ namespace SharpDMG.Emulation
                 case 0x0F:
                 case 0x17:
                 case 0x1F:
-                    return "One-byte non-CB bit level opcode.";
+                    break;
 
                 // Shit has become real
                 default:
                     {
                         Crashed = true;
                         Halted = true;
-                        return "Unknown Opcode. ======================";
+                        break;
                     }
             }
         }

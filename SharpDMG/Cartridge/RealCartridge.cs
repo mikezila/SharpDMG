@@ -20,7 +20,8 @@ namespace SharpDMG.Cartridge
 
         public RealCartridge(string portName = "COM3")
         {
-            cartridge = new SerialPort(portName, 57600);
+            cartridge = new SerialPort(portName, 128000);
+            this.Open();
         }
 
         private string ReadGamename()

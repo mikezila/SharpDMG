@@ -66,7 +66,7 @@ void setup() {
   pinMode(address15, OUTPUT);
 
   // Fastest baud that works reliably.
-  Serial.begin(57600);
+  Serial.begin(128000);
 
   // Default to reading ROM
   digitalWrite(RD, LOW);

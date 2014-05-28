@@ -40,6 +40,8 @@ namespace SharpDMG.Cartridge
         public RomOnlyCartridge(byte[] rom)
         {
             this.ROM = rom;
+
+            // Internal RAM only, no extra in cartridge.
             RAM = new byte[0x2000];
         }
 
@@ -50,7 +52,7 @@ namespace SharpDMG.Cartridge
             else if (address >= 0xC000 && address < 0xE000)
                 return RAM[address - 0xC000];
             else
-                throw new Exception("Non ROM read made it through to cartridge.");
+                throw new Exception("ROM/RAM read out of range.");
         }
 
         public void WriteByte(int address, byte data)
