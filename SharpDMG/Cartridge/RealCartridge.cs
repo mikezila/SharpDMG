@@ -123,13 +123,13 @@ namespace SharpDMG.Cartridge
             this.Close();
         }
 
-        private void Close()
+        public void Close()
         {
             if (cartridge.IsOpen)
                 cartridge.Close();
         }
 
-        private void Open()
+        public void Open()
         {
             if (!cartridge.IsOpen)
                 cartridge.Open();

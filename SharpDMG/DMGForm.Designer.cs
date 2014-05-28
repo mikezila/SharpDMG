@@ -29,24 +29,36 @@
         private void InitializeComponent()
         {
             this.consoleTextBox = new System.Windows.Forms.TextBox();
+            this.checkOpsButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // consoleTextBox
             // 
             this.consoleTextBox.Cursor = System.Windows.Forms.Cursors.Arrow;
-            this.consoleTextBox.Location = new System.Drawing.Point(12, 12);
+            this.consoleTextBox.Location = new System.Drawing.Point(12, 44);
             this.consoleTextBox.Multiline = true;
             this.consoleTextBox.Name = "consoleTextBox";
             this.consoleTextBox.ReadOnly = true;
             this.consoleTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.consoleTextBox.Size = new System.Drawing.Size(491, 602);
+            this.consoleTextBox.Size = new System.Drawing.Size(491, 570);
             this.consoleTextBox.TabIndex = 0;
+            // 
+            // checkOpsButton
+            // 
+            this.checkOpsButton.Location = new System.Drawing.Point(13, 13);
+            this.checkOpsButton.Name = "checkOpsButton";
+            this.checkOpsButton.Size = new System.Drawing.Size(75, 23);
+            this.checkOpsButton.TabIndex = 1;
+            this.checkOpsButton.Text = "Check Ops";
+            this.checkOpsButton.UseVisualStyleBackColor = true;
+            this.checkOpsButton.Click += new System.EventHandler(this.checkOpsButton_Click);
             // 
             // DMGForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(515, 626);
+            this.Controls.Add(this.checkOpsButton);
             this.Controls.Add(this.consoleTextBox);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Name = "DMGForm";
@@ -59,6 +71,7 @@
         #endregion
 
         private System.Windows.Forms.TextBox consoleTextBox;
+        private System.Windows.Forms.Button checkOpsButton;
     }
 }
 
