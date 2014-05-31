@@ -79,7 +79,12 @@ namespace SharpDMG.Cartridge
 
     interface ICartridge
     {
-        byte ReadByte(int address);
-        void WriteByte(int address, byte data);
+        byte[] VRAM { get; }
+        byte[] OAM { get; }
+
+        byte ReadByte(ushort address);
+        void WriteByte(ushort address, byte data);
+        void WriteWord(ushort address, ushort data);
+        byte[] ReadVRAMTile(int tileIndex);
     }
 }

@@ -8,7 +8,7 @@ namespace SharpDMG.Cartridge
 {
     // This provides a link to a real GameBoy cartridge.
 
-    public class RealCartridge : ICartridge, IDisposable
+    public class RealCartridge //: ICartridge, IDisposable
     {
         public string GameName { get; private set; }
         public int RomSize { get; private set; }
@@ -115,6 +115,11 @@ namespace SharpDMG.Cartridge
         }
 
         public void WriteByte(int address, byte data)
+        {
+            throw new NotImplementedException("Writing bytes to real cartridge is not supported yet.");
+        }
+
+        public void WriteWord(int address, short data)
         {
             throw new NotImplementedException("Writing bytes to real cartridge is not supported yet.");
         }

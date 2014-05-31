@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SharpDMG.Cartridge;
+﻿using SharpDMG.Cartridge;
+using System;
 
 namespace SharpDMG.Emulation
 {
@@ -18,6 +14,7 @@ namespace SharpDMG.Emulation
         //Has shit become real?
         public bool Crashed { get; private set; }
         public bool Halted { get; private set; }
+        public bool InteruptsEnabled { get; private set; }
 
         //Registers
         byte a, b, c, d, e, h, l;
@@ -27,55 +24,69 @@ namespace SharpDMG.Emulation
         byte f;
 
         //Stack and program pointers
-        public short PC { get; private set; }
-        short sp;
-        Stack<short> stack;
+        public ushort PC { get; private set; }
+        public ushort SP { get; private set; }
+
+        //Running clocks
+        public int mClock { get; set; }
+        public int tClock { get; set; }
 
         //Cycle timers
         public int m { get; private set; }
         public int t { get { return m * 4; } }
 
         #region Shortcut properites for double registers and next byte/word
-        bool ZeroFlag
+        public bool ZeroFlag
         {
             get { return TestBit(f, 7); }
-            set { if (value) SetBit(ref f, 7); else ResetBit(ref f, 7); }
+            private set { if (value) SetBit(ref f, 7); else ResetBit(ref f, 7); }
         }
 
-        bool SubtractionFlag
+        public bool SubtractionFlag
         {
             get { return TestBit(f, 6); }
-            set { if (value) SetBit(ref f, 6); else ResetBit(ref f, 6); }
+            private set { if (value) SetBit(ref f, 6); else ResetBit(ref f, 6); }
         }
 
-        bool HalfCaryFlag
+        public bool HalfCaryFlag
         {
             get { return TestBit(f, 5); }
-            set { if (value) SetBit(ref f, 5); else ResetBit(ref f, 5); }
+            private set { if (value) SetBit(ref f, 5); else ResetBit(ref f, 5); }
         }
 
-        bool CarryFlag
+        public bool CarryFlag
         {
             get { return TestBit(f, 4); }
-            set { if (value) SetBit(ref f, 4); else ResetBit(ref f, 4); }
+            private set { if (value) SetBit(ref f, 4); else ResetBit(ref f, 4); }
         }
 
-        short BC
+        public ushort BC
         {
-            get { return (short)(b << 8 | c); }
-            set { b = (byte)((value >> 8) & 0xFF); c = (byte)(value & 0xFF); }
+            get { return (ushort)(b << 8 | c); }
+            private set { b = (byte)((value >> 8) & 0xFF); c = (byte)(value & 0xFF); }
         }
 
-        short DE
+        public ushort DE
         {
-            get { return (short)(d << 8 | e); }
-            set { d = (byte)((value >> 8) & 0xFF); e = (byte)(value & 0xFF); }
+            get { return (ushort)(d << 8 | e); }
+            private set { d = (byte)((value >> 8) & 0xFF); e = (byte)(value & 0xFF); }
         }
 
-        short HL
+        public ushort HL
         {
-            get { return (short)(h << 8 | l); }
-            set { h = (byte)((value >> 8) & 0xFF); l = (byte)(value & 0xFF); }
+            get { return (ushort)(h << 8 | l); }
+            private set { h = (byte)((value >> 8) & 0xFF); l = (byte)(value & 0xFF); }
+        }
+
+        public ushort AF
+        {
+            get { return (ushort)(a << 8 | f); }
+            private set { a = (byte)((value >> 8) & 0xFF); f = (byte)(value & 0xFF); }
+        }
+
+        public byte PeekByte
+        {
+            get { return cartridge.ReadByte(PC); }
         }
 
         byte NextByte
@@ -83,23 +94,21 @@ namespace SharpDMG.Emulation
             get { return cartridge.ReadByte(PC++); }
         }
 
-        short NextWord
+        ushort NextWord
         {
-            get { return (short)(NextByte + (NextByte << 8)); }
+            get { return (ushort)(NextByte + (NextByte << 8)); }
         }
         #endregion
 
-        public Z80()
+        public Z80(ICartridge game)
         {
-            cartridge = new EmulatedCartridge("tetris.gb");
-            stack = new Stack<short>();
+            cartridge = game;
             Reset();
         }
 
         private void Reset()
         {
             Crashed = false;
-            stack.Clear();
             a = 0;
             b = 0;
             c = 0;
@@ -107,7 +116,7 @@ namespace SharpDMG.Emulation
             e = 0;
             h = 0;
             l = 0;
-            sp = 0;
+            SP = 0;
             PC = 0x0100;
             m = 0;
             f = 0;
@@ -133,6 +142,34 @@ namespace SharpDMG.Emulation
             m = 1;
         }
 
+        private void PushWordToStack(ushort data)
+        {
+            cartridge.WriteByte(--SP, (byte)(data & 0xFF));
+            cartridge.WriteByte(--SP, (byte)(data >> 8));
+            m = 4;
+        }
+
+        private void PopWordFromStack(ushort registerPair)
+        {
+            byte highByte = cartridge.ReadByte(SP++);
+            byte lowByte = cartridge.ReadByte(SP++);
+            registerPair = (ushort)(highByte << 8 | lowByte);
+            m = 4;
+        }
+
+        private void PushPCtoStack()
+        {
+            cartridge.WriteByte(--SP, (byte)(PC & 0xFF));
+            cartridge.WriteByte(--SP, (byte)(PC >> 8));
+        }
+
+        private void PopPCFromStack()
+        {
+            byte highByte = cartridge.ReadByte(SP++);
+            byte lowByte = cartridge.ReadByte(SP++);
+            PC = (ushort)(highByte << 8 | lowByte);
+        }
+
         #endregion
 
         #region 8-bit Load/Store Op Fuctions
@@ -142,13 +179,13 @@ namespace SharpDMG.Emulation
             m = 1; // One m-time taken.
         }
 
-        private void LoadRegisterFromAddress(ref byte register, short address)
+        private void LoadRegisterFromAddress(ref byte register, ushort address)
         {
             register = cartridge.ReadByte(address);
             m = 2; // Two m-time taken.
         }
 
-        private void LoadMemoryFromRegister(short address, byte register)
+        private void LoadMemoryFromRegister(ushort address, byte register)
         {
             cartridge.WriteByte(address, register);
             m = 2; // Two m-time taken.
@@ -160,7 +197,7 @@ namespace SharpDMG.Emulation
             m = 2; // Two m-time taken. Etc.
         }
 
-        private void LoadMemoryFromProgramCounter(short address)
+        private void LoadMemoryFromProgramCounter(ushort address)
         {
             cartridge.WriteByte(address, NextByte);
             m = 2;
@@ -168,13 +205,13 @@ namespace SharpDMG.Emulation
 
         private void ZPLoadRegisterFromMemory(ref byte register, byte address)
         {
-            register = cartridge.ReadByte(0xFF00 + address);
+            register = cartridge.ReadByte((ushort)(0xFF00 + address));
             m = 3;
         }
 
         private void ZPLoadMemoryFromRegister(byte address, byte register)
         {
-            cartridge.WriteByte(0xFF00 + address, register);
+            cartridge.WriteByte((ushort)(0xFF00 + address), register);
             m = 3;
         }
         #endregion
@@ -196,7 +233,7 @@ namespace SharpDMG.Emulation
             subject &= (byte)(~(1 << bit));
         }
 
-        private void ANDAddressWithRegister(ref byte to, short address)
+        private void ANDAddressWithRegister(ref byte to, ushort address)
         {
             byte from = cartridge.ReadByte(address);
             to &= from;
@@ -217,7 +254,7 @@ namespace SharpDMG.Emulation
             m = 1;
         }
 
-        private void ORAddressWithRegister(ref byte to, short address)
+        private void ORAddressWithRegister(ref byte to, ushort address)
         {
             byte from = cartridge.ReadByte(address);
             to |= from;
@@ -238,7 +275,7 @@ namespace SharpDMG.Emulation
             m = 1;
         }
 
-        private void XORAddressWithRegister(ref byte to, short address)
+        private void XORAddressWithRegister(ref byte to, ushort address)
         {
             byte from = cartridge.ReadByte(address);
             to ^= from;
@@ -365,7 +402,7 @@ namespace SharpDMG.Emulation
         }
 
 
-        private void IncrementAddress(short address)
+        private void IncrementAddress(ushort address)
         {
             byte data = cartridge.ReadByte(address);
             data++;
@@ -376,7 +413,7 @@ namespace SharpDMG.Emulation
             m = 3;
         }
 
-        private void DecrementAddress(short address)
+        private void DecrementAddress(ushort address)
         {
             byte data = cartridge.ReadByte(address);
             data--;
@@ -405,7 +442,7 @@ namespace SharpDMG.Emulation
             m = 1;
         }
 
-        private void AddAddressToRegister(ref byte register, short address)
+        private void AddAddressToRegister(ref byte register, ushort address)
         {
             byte data = cartridge.ReadByte(address);
             CarryFlag = (((int)register + (int)data) > 255);
@@ -420,7 +457,7 @@ namespace SharpDMG.Emulation
         {
             if (CarryFlag)
             {
-                CarryFlag = (((int)to + (int)from + 1) > 255);                
+                CarryFlag = (((int)to + (int)from + 1) > 255);
                 to += (byte)(from + 1);
             }
             else
@@ -434,7 +471,7 @@ namespace SharpDMG.Emulation
             m = 1;
         }
 
-        private void AddAddressToRegisterWithCarry(ref byte to, short address)
+        private void AddAddressToRegisterWithCarry(ref byte to, ushort address)
         {
             byte from = cartridge.ReadByte(address);
             if (CarryFlag)
@@ -473,7 +510,7 @@ namespace SharpDMG.Emulation
             m = 1;
         }
 
-        private void CompareAddress(byte to, short address)
+        private void CompareAddress(byte to, ushort address)
         {
             byte from = cartridge.ReadByte(address);
             CarryFlag = ((int)to - (int)from) < 0;
@@ -493,7 +530,7 @@ namespace SharpDMG.Emulation
             }
             else
             {
-                CarryFlag = (((int)to - (int)from - 1) < 0);
+                CarryFlag = (((int)to - (int)from) < 0);
                 to -= from;
             }
             ZeroFlag = (to == 0);
@@ -502,7 +539,18 @@ namespace SharpDMG.Emulation
             m = 1;
         }
 
-        private void SubtractAddressFromRegisterWithCarry(ref byte to, short address)
+        private void SubtractAddressFromRegister(ref byte to, ushort address)
+        {
+            byte from = cartridge.ReadByte(address);
+            CarryFlag = (((int)to - (int)from - 1) < 0);
+            to -= from;
+            ZeroFlag = (to == 0);
+            HalfCaryFlag = (to & 0x0F) == 0x0F;
+            SubtractionFlag = true;
+            m = 1;
+        }
+
+        private void SubtractAddressFromRegisterWithCarry(ref byte to, ushort address)
         {
             byte from = cartridge.ReadByte(address);
             if (CarryFlag)
@@ -523,14 +571,312 @@ namespace SharpDMG.Emulation
 
         #endregion
 
+        #region 16-bit Load/Store
+
+        private void StoreStackPointerAtAddress(ushort address)
+        {
+            cartridge.WriteWord(NextWord, SP);
+            m = 5;
+        }
+
+        #endregion
+
+        #region Jumps/Calls
+
+        private void JumpRelative()
+        {
+            JumpRelativeHelper();
+            m = 3;
+        }
+
+        private void JumpRelativeZero()
+        {
+            if (ZeroFlag)
+            {
+                JumpRelativeHelper();
+                m = 3;
+            }
+            else
+            {
+                PC++;
+                m = 2;
+            }
+        }
+
+        private void JumpRelativeCarry()
+        {
+            if (CarryFlag)
+            {
+                JumpRelativeHelper();
+                m = 3;
+            }
+            else
+            {
+                PC++;
+                m = 3;
+            }
+        }
+
+        private void JumpRelativeNotZero()
+        {
+            if (!ZeroFlag)
+            {
+                JumpRelativeHelper();
+                m = 3;
+            }
+            else
+            {
+                PC++;
+                m = 2;
+            }
+        }
+
+        private void JumpRelativeNotCarry()
+        {
+            if (!CarryFlag)
+            {
+                JumpRelativeHelper();
+                m = 3;
+            }
+            else
+            {
+                PC++;
+                m = 3;
+            }
+        }
+
+        // Kind of hacky, but eh.
+        private void JumpRelativeHelper()
+        {
+            int i = NextByte;
+            if (i > 127)
+                i = -((~i + 1) & 0xFF);
+            int tempPC = PC;
+            tempPC += i;
+            tempPC &= 0xFFFF;
+            PC = (ushort)tempPC;
+        }
+
+        private void JumpFromMemory(ushort address)
+        {
+            PC = cartridge.ReadByte(address);
+            m = 1;
+        }
+
+        private void JumpFromImmediate()
+        {
+            PC = NextWord;
+            m = 4;
+        }
+
+        private void JumpIfNotZero()
+        {
+            if (!ZeroFlag)
+            {
+                PC = NextWord;
+                m = 4;
+
+            }
+            else
+            {
+                PC += 2;
+                m = 3;
+            }
+        }
+
+        private void JumpIfZero()
+        {
+            if (ZeroFlag)
+            {
+                PC = NextWord;
+                m = 4;
+
+            }
+            else
+            {
+                PC += 2;
+                m = 3;
+            }
+        }
+
+        private void JumpIfNotCarry()
+        {
+            if (!CarryFlag)
+            {
+                PC = NextWord;
+                m = 4;
+            }
+            else
+            {
+                PC += 2;
+                m = 3;
+            }
+        }
+
+        private void JumpIfCarry()
+        {
+            if (CarryFlag)
+            {
+                PC = NextWord;
+                m = 4;
+            }
+            else
+            {
+                PC += 2;
+                m = 3;
+            }
+        }
+
+        private void CallRST(byte vector)
+        {
+            PushPCtoStack();
+            PC = (ushort)vector;
+            m = 4;
+        }
+
+        private void Call()
+        {
+            PushPCtoStack();
+            PC = NextWord;
+            m = 6;
+        }
+
+        private void CallNotZero()
+        {
+            if (!ZeroFlag)
+            {
+                PushPCtoStack();
+                PC = NextWord;
+                m = 6;
+            }
+            else
+            {
+                PC += 2;
+                m = 4;
+            }
+        }
+
+        private void CallZero()
+        {
+            if (ZeroFlag)
+            {
+                PushPCtoStack();
+                PC = NextWord;
+                m = 6;
+            }
+            else
+            {
+                PC += 2;
+                m = 4;
+            }
+        }
+
+        private void CallNotCarry()
+        {
+            if (!CarryFlag)
+            {
+                PushPCtoStack();
+                PC = NextWord;
+                m = 6;
+            }
+            else
+            {
+                PC += 2;
+                m = 4;
+            }
+        }
+
+        private void CallCarry()
+        {
+            if (CarryFlag)
+            {
+                PushPCtoStack();
+                PC = NextWord;
+                m = 6;
+            }
+            else
+            {
+                PC += 2;
+                m = 4;
+            }
+        }
+
+        private void Return()
+        {
+            PopPCFromStack();
+            m = 4;
+        }
+
+        private void ReturnFromI()
+        {
+            PopPCFromStack();
+            m = 4;
+        }
+
+        private void ReturnNotZero()
+        {
+            if (!ZeroFlag)
+            {
+                PopPCFromStack();
+                m = 5;
+            }
+            else
+            {
+                m = 2;
+            }
+        }
+
+        private void ReturnZero()
+        {
+            if (ZeroFlag)
+            {
+                PopPCFromStack();
+                m = 5;
+            }
+            else
+            {
+                m = 2;
+            }
+        }
+
+        private void ReturnNotCarry()
+        {
+            if (!CarryFlag)
+            {
+                PopPCFromStack();
+                m = 5;
+            }
+            else
+            {
+                m = 2;
+            }
+        }
+
+        private void ReturnCarry()
+        {
+            if (CarryFlag)
+            {
+                PopPCFromStack();
+                m = 5;
+            }
+            else
+            {
+                m = 2;
+            }
+        }
+
+        #endregion
+
         internal void Step()
         {
             switch (NextByte)
             {
-                // No Op
+                #region No Op
+                // Real NOP
                 case 0x00:
                     { NoOp(); break; }
 
+                // Removed/undefined opcode.  Fake NOP
                 case 0xD3:
                 case 0xDB:
                 case 0xDD:
@@ -544,76 +890,89 @@ namespace SharpDMG.Emulation
                 case 0xFD:
                     { NoOp(); break; }
 
-                // Jumps and calls
+                #endregion
+
+                #region Jumps and calls
 
                 // Three byte ops
-                case 0xC2:
-                case 0xC3:
-                case 0xC4:
-                case 0xCA:
-                case 0xCC:
-                case 0xCD:
-                case 0xD2:
-                case 0xD4:
-                case 0xDA:
-                case 0xDC:
-                    {
-                        PC += 2;
-                        break;
-                    }
+                case 0xC2: { JumpIfNotZero(); break; }
+                case 0xC3: { JumpFromImmediate(); break; }
+                case 0xC4: { CallNotZero(); break; }
+                case 0xCA: { JumpIfZero(); break; }
+                case 0xCC: { CallZero(); break; }
+                case 0xCD: { Call(); break; }
+                case 0xD2: { JumpIfNotCarry(); break; }
+                case 0xD4: { CallNotCarry(); break; }
+                case 0xDA: { JumpIfCarry(); break; }
+                case 0xDC: { CallCarry(); break; }
 
                 // Two byte ops
-                case 0x18:
-                case 0x20:
-                case 0x28:
-                case 0x30:
-                case 0x38:
-                    {
-                        PC++;
-                        break;
-                    }
+                case 0x18: { JumpRelative(); break; }
+                case 0x20: { JumpRelativeNotZero(); break; }
+                case 0x28: { JumpRelativeZero(); break; }
+                case 0x30: { JumpRelativeNotCarry(); break; }
+                case 0x38: { JumpRelativeCarry(); break; }
 
                 // One byte ops
-                case 0xC0:
-                case 0xC7:
-                case 0xC8:
-                case 0xC9:
-                case 0xCF:
-                case 0xD0:
-                case 0xD7:
-                case 0xD8:
-                case 0xD9:
-                case 0xDF:
-                case 0xE7:
-                case 0xE9:
-                case 0xEF:
-                case 0xF7:
-                case 0xFF:
-                    break;
+                case 0xC0: { ReturnNotZero(); break; }
+                case 0xC7: { CallRST(0x00); break; }
+                case 0xC8: { ReturnZero(); break; }
+                case 0xC9: { Return(); break; }
+                case 0xCF: { CallRST(0x08); break; }
+                case 0xD0: { ReturnNotCarry(); break; }
+                case 0xD7: { CallRST(0x10); break; }
+                case 0xD8: { ReturnZero(); break; }
+                case 0xD9: { ReturnFromI(); break; }
+                case 0xDF: { CallRST(0x18); break; }
+                case 0xE7: { CallRST(0x20); break; }
+                case 0xE9: { JumpFromMemory(HL); break; }
+                case 0xEF: { CallRST(0x28); break; }
+                case 0xF7: { CallRST(0x30); break; }
+                case 0xFF: { CallRST(0x38); break; }
+
+                #endregion
 
                 // Misc/Control Instructions
                 case 0x10:
                     {
                         //CPU STOP
                         PC++; // FIXME: Maybe only one byte?
+                        m = 1;
                         break;
                     }
                 case 0x76:
                     {
                         Halted = true;
+                        m = 1;
                         break;
                     }
+
+                // Extended Bit-level Op table
                 case 0xCB:
                     {
-                        PC++;
+                        switch (NextByte)
+                        {
+                            default:
+                                {
+                                    break;
+                                }
+                        }
                         break;
                     }
                 case 0xF3:
-                    break;
+                    {
+                        InteruptsEnabled = false;
+                        m = 1;
+                        break;
+                    }
                 case 0xFB:
-                    break;
+                    {
+                        InteruptsEnabled = true;
+                        m = 1;
+                        break;
+                    }
 
-                // 8-bit Math/Logic
+                #region 8-bit Math/Logic
 
                 // One byte ops
                 case 0x04: { IncrementRegister(ref b); break; }
@@ -658,7 +1017,7 @@ namespace SharpDMG.Emulation
                 case 0x93: { SubtractRegisterFromRegister(ref a, e); break; }
                 case 0x94: { SubtractRegisterFromRegister(ref a, h); break; }
                 case 0x95: { SubtractRegisterFromRegister(ref a, l); break; }
-                case 0x96: { SubtractAddressFromRegisterWithCarry(ref a, HL); break; }
+                case 0x96: { SubtractAddressFromRegister(ref a, HL); break; }
                 case 0x97: { SubtractRegisterFromRegister(ref a, a); break; }
                 case 0x98: { SubtractRegisterFromRegisterWithCarry(ref a, b); break; }
                 case 0x99: { SubtractRegisterFromRegisterWithCarry(ref a, c); break; }
@@ -702,18 +1061,17 @@ namespace SharpDMG.Emulation
                 case 0xBF: { CompareRegister(a, a); break; }
 
                 // Two byte ops
-                case 0xC6:
-                case 0xCE:
-                case 0xD6:
-                case 0xDE:
-                case 0xE6:
-                case 0xEE:
-                case 0xF6:
-                case 0xFE:
-                    {
-                        PC++;
-                        break;
-                    }
+                // I reuse the register+register ops here and just add another cycle.
+                // The operations are equal otherwise.
+                case 0xC6: { AddRegisterToRegister(ref a, NextByte); m++; break; }
+                case 0xCE: { AddRegisterToRegisterWithCarry(ref a, NextByte); m++; break; }
+                case 0xD6: { SubtractRegisterFromRegister(ref a, NextByte); m++; break; }
+                case 0xDE: { SubtractRegisterFromRegisterWithCarry(ref a, NextByte); m++; break; }
+                case 0xE6: { ANDRegisterWithRegister(ref a, NextByte); m++; break; }
+                case 0xEE: { XORRegisterWithRegister(ref a, NextByte); m++; break; }
+                case 0xF6: { ORRegisterWithRegister(ref a, NextByte); m++; break; }
+                case 0xFE: { CompareRegister(a, NextByte); m++; break; }
+                #endregion
 
                 # region 8-bit Load/Store
                 // 8-bit Load/Store
@@ -810,37 +1168,46 @@ namespace SharpDMG.Emulation
                 case 0x7F: { LoadRegisterFromRegister(ref a, a); break; }
                 #endregion
 
-                // 16-bit Load/Store/Move
+                #region 16-bit Load/Store/Move
 
                 // Three byte ops
-                case 0x01:
-                case 0x08:
-                case 0x11:
-                case 0x21:
-                case 0x31:
-                    {
-                        PC += 2;
-                        break;
-                    }
+                case 0x01: { BC = NextWord; m = 3; break; }
+                case 0x08: { StoreStackPointerAtAddress(NextWord); break; }
+                case 0x11: { DE = NextWord; m = 3; break; }
+                case 0x21: { HL = NextWord; m = 3; break; }
+                case 0x31: { PC = NextWord; m = 3; break; }
 
                 // Two byte op
+                // Load HL with SP+8bit immediate.
+                // FIXME: Wrong carry flag check?
                 case 0xF8:
                     {
-                        PC++;
+                        HL = (ushort)(SP + NextByte);
+                        ZeroFlag = false;
+                        SubtractionFlag = false;
+                        HalfCaryFlag = (HL & 0x0F) == 0x0F;
+                        CarryFlag = HL > 255;
+                        m = 2;
                         break;
                     }
 
                 // One byte ops
-                case 0xC1:
-                case 0xC5:
-                case 0xD1:
-                case 0xD5:
-                case 0xE1:
-                case 0xE5:
-                case 0xF1:
-                case 0xF5:
+                case 0xC1: { PopWordFromStack(BC); break; }
+                case 0xC5: { PushWordToStack(BC); break; }
+                case 0xD1: { PopWordFromStack(DE); break; }
+                case 0xD5: { PushWordToStack(DE); break; }
+                case 0xE1: { PopWordFromStack(HL); break; }
+                case 0xE5: { PushWordToStack(HL); break; }
+                case 0xF1: { PopWordFromStack(AF); break; }
+                case 0xF5: { PushWordToStack(AF); break; }
                 case 0xF9:
-                    break;
+                    { // Load SP from HL direct.
+                        SP = HL;
+                        m = 2;
+                        break;
+                    }
+
+                #endregion
 
                 // 16-bit Math/Logic
 
@@ -876,7 +1243,6 @@ namespace SharpDMG.Emulation
                 default:
                     {
                         Crashed = true;
-                        Halted = true;
                         break;
                     }
             }

@@ -14,14 +14,38 @@ namespace SharpDMG
 {
     public partial class DMGForm : Form
     {
+        Graphics g;
+
         public DMGForm()
         {
             InitializeComponent();
+            g = CreateGraphics();
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
         }
 
-        private void checkOpsButton_Click(object sender, EventArgs e)
+        private DMGSystem system = new DMGSystem();
+
+        private void button1_Click(object sender, EventArgs e)
         {
-            Z80 cpu = new Z80();
+            system.Step();
+            consoleTextBox.Text = system.DebugState;
+            g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
         }
+
+        private void stepTenButton_Click(object sender, EventArgs e)
+        {
+            system.Step(10);
+            consoleTextBox.Text = system.DebugState;
+            g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
+        }
+
+        private void stepHundredButton_Click(object sender, EventArgs e)
+        {
+            system.Step(100);
+            consoleTextBox.Text = system.DebugState;
+            g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
+        }
+
     }
 }

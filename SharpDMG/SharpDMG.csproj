@@ -54,6 +54,9 @@
       <DependentUpon>DMGForm.cs</DependentUpon>
     </Compile>
     <Compile Include="DMG.cs" />
+    <Compile Include="Emulation\DMGSystem.cs" />
+    <Compile Include="Emulation\GameBoyGPU.cs" />
+    <Compile Include="Emulation\GBTile.cs" />
     <Compile Include="Emulation\Z80.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="DMGForm.resx">
