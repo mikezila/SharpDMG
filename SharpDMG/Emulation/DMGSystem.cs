@@ -22,7 +22,7 @@ namespace SharpDMG.Emulation
                 debugger.AppendLine("HL: " + CPU.HL.ToString("X4") + " BC: " + CPU.BC.ToString("X4"));
                 debugger.AppendLine("DE: " + CPU.DE.ToString("X4") + " AF: " + CPU.AF.ToString("X4"));
                 debugger.AppendLine("Flags: Z-" + CPU.ZeroFlag + " N-" + CPU.SubtractionFlag + " H-" + CPU.HalfCaryFlag + " C-" + CPU.CarryFlag);
-                debugger.AppendLine("Next OP: " + CPU.PeekByte.ToString("X2"));
+                debugger.AppendLine("Next OP: " + CPU.NextThreeBytes());
                 if (CPU.Crashed)
                     debugger.AppendLine("Crashed!");
                 return debugger.ToString();

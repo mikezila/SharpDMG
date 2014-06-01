@@ -18,6 +18,17 @@ namespace SharpDMG.Emulation
             Pixels = new byte[16];
         }
 
+        //Row is zero-indexed, from the top.  So 0-7.
+        public Bitmap GetRow(int row)
+        {
+            Bitmap pixels = new Bitmap(8, 1);
+
+            for (int x = 0; x < 8; x++)
+                pixels.SetPixel(x, 0, Raster.GetPixel(x, row));
+
+            return pixels;
+        }
+
         private static bool TestBit(byte subject, int bit)
         {
             return (subject & (1 << bit)) != 0;

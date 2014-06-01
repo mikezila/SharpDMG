@@ -32,6 +32,7 @@
             this.stepButton = new System.Windows.Forms.Button();
             this.stepTenButton = new System.Windows.Forms.Button();
             this.stepHundredButton = new System.Windows.Forms.Button();
+            this.stepThousandButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // consoleTextBox
@@ -75,11 +76,22 @@
             this.stepHundredButton.UseVisualStyleBackColor = true;
             this.stepHundredButton.Click += new System.EventHandler(this.stepHundredButton_Click);
             // 
+            // stepThousandButton
+            // 
+            this.stepThousandButton.Location = new System.Drawing.Point(258, 493);
+            this.stepThousandButton.Name = "stepThousandButton";
+            this.stepThousandButton.Size = new System.Drawing.Size(59, 23);
+            this.stepThousandButton.TabIndex = 4;
+            this.stepThousandButton.Text = "(1000)";
+            this.stepThousandButton.UseVisualStyleBackColor = true;
+            this.stepThousandButton.Click += new System.EventHandler(this.stepThousandButton_Click);
+            // 
             // DMGForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(329, 527);
+            this.Controls.Add(this.stepThousandButton);
             this.Controls.Add(this.stepHundredButton);
             this.Controls.Add(this.stepTenButton);
             this.Controls.Add(this.stepButton);
@@ -98,6 +110,7 @@
         private System.Windows.Forms.Button stepButton;
         private System.Windows.Forms.Button stepTenButton;
         private System.Windows.Forms.Button stepHundredButton;
+        private System.Windows.Forms.Button stepThousandButton;
     }
 }
 

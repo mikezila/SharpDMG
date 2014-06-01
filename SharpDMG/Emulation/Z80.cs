@@ -38,25 +38,26 @@ namespace SharpDMG.Emulation
         #region Shortcut properites for double registers and next byte/word
         public bool ZeroFlag
         {
-            get { return TestBit(f, 7); }
+            get { return ((f & (0x01 << 7)) != 0); }
+            //get { return TestBit(f, 7); }
             private set { if (value) SetBit(ref f, 7); else ResetBit(ref f, 7); }
         }
 
         public bool SubtractionFlag
         {
-            get { return TestBit(f, 6); }
+            get { return ((f & (0x01 << 6)) != 0); }
             private set { if (value) SetBit(ref f, 6); else ResetBit(ref f, 6); }
         }
 
         public bool HalfCaryFlag
         {
-            get { return TestBit(f, 5); }
+            get { return ((f & (0x01 << 5)) != 0); }
             private set { if (value) SetBit(ref f, 5); else ResetBit(ref f, 5); }
         }
 
         public bool CarryFlag
         {
-            get { return TestBit(f, 4); }
+            get { return ((f & (0x01 << 4)) != 0); }
             private set { if (value) SetBit(ref f, 4); else ResetBit(ref f, 4); }
         }
 
@@ -98,6 +99,13 @@ namespace SharpDMG.Emulation
         {
             get { return (ushort)(NextByte + (NextByte << 8)); }
         }
+
+        // For debugging display
+        public string NextThreeBytes()
+        {
+            return cartridge.ReadByte(PC).ToString("X2") + " " + cartridge.ReadByte((ushort)(PC + 1)).ToString("X2") + " " + cartridge.ReadByte((ushort)(PC + 2)).ToString("X2");
+        }
+
         #endregion
 
         public Z80(ICartridge game)
@@ -117,7 +125,7 @@ namespace SharpDMG.Emulation
             h = 0;
             l = 0;
             SP = 0;
-            PC = 0x0100;
+            PC = 0x0000;
             m = 0;
             f = 0;
             Console.WriteLine("Z80 core reset.");
@@ -218,19 +226,46 @@ namespace SharpDMG.Emulation
 
         #region Bit level Op Functions
 
-        private bool TestBit(byte subject, int bit)
+        private void TestBitAtAddress(ushort address, int bit)
         {
-            return (subject & (1 << bit)) != 0;
+            TestBit(cartridge.ReadByte(address), bit);
+            m = 4;
+        }
+
+        private void TestBit(byte subject, int bit)
+        {
+            ZeroFlag = (subject & (1 << bit)) == 0;
+            SubtractionFlag = false;
+            HalfCaryFlag = true;
+            m = 2;
+        }
+
+        private void SetBitAtAddress(ushort address, int bit)
+        {
+            byte subject = cartridge.ReadByte(address);
+            subject |= (byte)(1 << bit);
+            cartridge.WriteByte(address, subject);
+            m = 4;
         }
 
         private void SetBit(ref byte subject, int bit)
         {
             subject |= (byte)(1 << bit);
+            m = 2;
+        }
+
+        private void ResetBitAtAddress(ushort address, int bit)
+        {
+            byte subject = cartridge.ReadByte(address);
+            subject &= (byte)(~(1 << bit));
+            cartridge.WriteByte(address, subject);
+            m = 4;
         }
 
         private void ResetBit(ref byte subject, int bit)
         {
             subject &= (byte)(~(1 << bit));
+            m = 2;
         }
 
         private void ANDAddressWithRegister(ref byte to, ushort address)
@@ -293,6 +328,30 @@ namespace SharpDMG.Emulation
             SubtractionFlag = false;
             HalfCaryFlag = false;
             CarryFlag = false;
+            m = 1;
+        }
+
+        #endregion
+
+        #region Bit Rotation
+
+        private void RotateRegisterLeft(ref byte register)
+        {
+            CarryFlag = (register << 1) > 255;
+            register = (byte)(((register << 1) | (register >> 7)) & 0xFF);
+            ZeroFlag = false;
+            SubtractionFlag = false;
+            HalfCaryFlag = false;
+            m = 1;
+        }
+
+        private void RotateRegisterRight(ref byte register)
+        {
+            CarryFlag = (register >> 1) > 255;
+            register = (byte)((register >> 1) | (register << 7));
+            ZeroFlag = false;
+            SubtractionFlag = false;
+            HalfCaryFlag = false;
             m = 1;
         }
 
@@ -581,6 +640,19 @@ namespace SharpDMG.Emulation
 
         #endregion
 
+        #region 16-bit Math/Logic
+
+        private void AddRegisterPairToHL(ushort from)
+        {
+            CarryFlag = (((int)HL + (int)from) > 255);
+            HL += from;
+            SubtractionFlag = false;
+            HalfCaryFlag = (HL & 0x0F) == 0x0F;
+            m = 2;
+        }
+
+        #endregion
+
         #region Jumps/Calls
 
         private void JumpRelative()
@@ -655,6 +727,23 @@ namespace SharpDMG.Emulation
             tempPC += i;
             tempPC &= 0xFFFF;
             PC = (ushort)tempPC;
+        }
+
+        private void AddRelativeToSP()
+        {
+            int i = NextByte;
+            if (i > 127)
+                i = -((~i + 1) & 0xFF);
+            int tempSP = SP;
+            tempSP += i;
+            tempSP &= 0xFFFF;
+            SP = (ushort)tempSP;
+            ZeroFlag = false;
+            SubtractionFlag = false;
+            //Other emulators leave this op  out of changing these flags
+            //HalfCaryFlag = (SP & 0x0F) == 0x0F;
+            //CarryFlag = tempSP > 255;
+            m = 4;
         }
 
         private void JumpFromMemory(ushort address)
@@ -869,7 +958,8 @@ namespace SharpDMG.Emulation
 
         internal void Step()
         {
-            switch (NextByte)
+            byte op = NextByte;
+            switch (op)
             {
                 #region No Op
                 // Real NOP
@@ -932,6 +1022,27 @@ namespace SharpDMG.Emulation
 
                 #endregion
 
+                #region CB-Ops
+                // Extended Bit-level Op table
+                case 0xCB:
+                    {
+                        byte extOP = NextByte;
+                        switch (extOP)
+                        {
+                            case 0x11: { RotateRegisterLeft(ref c); if (c == 0)ZeroFlag = true; m++; break; }
+                            case 0x7C: { TestBit(h, 7); break; }
+                            default:
+                                {
+                                    {
+                                        throw new NotImplementedException("Missing Extended (CB) Opcode: " + extOP.ToString("X2") + " PC: " + PC.ToString("X4"));
+                                    }
+                                }
+                        }
+                        break;
+                    }
+                #endregion
+
+                #region Misc/Control Ops
                 // Misc/Control Instructions
                 case 0x10:
                     {
@@ -947,18 +1058,6 @@ namespace SharpDMG.Emulation
                         break;
                     }
 
-                // Extended Bit-level Op table
-                case 0xCB:
-                    {
-                        switch (NextByte)
-                        {
-                            default:
-                                {
-                                    break;
-                                }
-                        }
-                        break;
-                    }
                 case 0xF3:
                     {
                         InteruptsEnabled = false;
@@ -971,6 +1070,7 @@ namespace SharpDMG.Emulation
                         m = 1;
                         break;
                     }
+                #endregion
 
                 #region 8-bit Math/Logic
 
@@ -1175,7 +1275,7 @@ namespace SharpDMG.Emulation
                 case 0x08: { StoreStackPointerAtAddress(NextWord); break; }
                 case 0x11: { DE = NextWord; m = 3; break; }
                 case 0x21: { HL = NextWord; m = 3; break; }
-                case 0x31: { PC = NextWord; m = 3; break; }
+                case 0x31: { SP = NextWord; m = 3; break; }
 
                 // Two byte op
                 // Load HL with SP+8bit immediate.
@@ -1212,32 +1312,31 @@ namespace SharpDMG.Emulation
                 // 16-bit Math/Logic
 
                 // One byte ops
-                case 0x03:
-                case 0x09:
-                case 0x0B:
-                case 0x13:
-                case 0x19:
-                case 0x1B:
-                case 0x23:
-                case 0x29:
-                case 0x2B:
-                case 0x33:
-                case 0x39:
-                case 0x3B:
-                    break;
+                case 0x03: { BC++; m = 2; break; }
+                case 0x09: { AddRegisterPairToHL(BC); break; }
+                case 0x0B: { BC--; m = 2; break; }
+                case 0x13: { DE++; m = 2; break; }
+                case 0x19: { AddRegisterPairToHL(DE); break; }
+                case 0x1B: { DE--; m = 2; break; }
+                case 0x23: { HL++; m = 2; break; }
+                case 0x29: { AddRegisterPairToHL(HL); break; }
+                case 0x2B: { HL--; m = 2; break; }
+                case 0x33: { SP++; m = 2; break; }
+                case 0x39: { AddRegisterPairToHL(SP); break; }
+                case 0x3B: { SP--; m = 2; break; }
 
-                case 0xE8:
-                    {
-                        PC++;
-                        break;
-                    }
+                // Two byte op
+                case 0xE8: { AddRelativeToSP(); break; }
 
                 // Non-CB bit level ops
                 case 0x07:
                 case 0x0F:
-                case 0x17:
-                case 0x1F:
-                    break;
+                    {
+                        throw new NotImplementedException("Missing Opcode: " + op.ToString("X2"));
+                    }
+                case 0x17: { RotateRegisterLeft(ref a); break; }
+                case 0x1F: { RotateRegisterRight(ref a); break; }
+
 
                 // Shit has become real
                 default:

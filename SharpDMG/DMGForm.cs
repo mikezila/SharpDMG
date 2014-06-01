@@ -31,6 +31,7 @@ namespace SharpDMG
             system.Step();
             consoleTextBox.Text = system.DebugState;
             g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
+            //system.GPU.DumpTiles();
         }
 
         private void stepTenButton_Click(object sender, EventArgs e)
@@ -38,6 +39,7 @@ namespace SharpDMG
             system.Step(10);
             consoleTextBox.Text = system.DebugState;
             g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
+            //system.GPU.DumpTiles();
         }
 
         private void stepHundredButton_Click(object sender, EventArgs e)
@@ -45,6 +47,15 @@ namespace SharpDMG
             system.Step(100);
             consoleTextBox.Text = system.DebugState;
             g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
+            system.GPU.DumpTiles();
+        }
+
+        private void stepThousandButton_Click(object sender, EventArgs e)
+        {
+            system.Step(10000);
+            consoleTextBox.Text = system.DebugState;
+            g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
+            //system.GPU.DumpTiles();
         }
 
     }

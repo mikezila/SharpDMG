@@ -66,9 +66,26 @@ namespace SharpDMG.Emulation
             Palette[3] = GBBlack;
         }
 
-        public void UpdatePalette(byte colors)
+        private static bool TestBit(byte subject, int bit)
         {
-            throw new NotImplementedException();
+            return (subject & (1 << bit)) != 0;
+        }
+
+        public void UpdatePalette()
+        {
+            byte colors = Memory.ReadByte(0xFF47);
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (TestBit(colors, 0 + (i * 2)) && TestBit(colors, 1 + (i * 2)))
+                    Palette[i] = GBBlack;
+                else if (TestBit(colors, 0 + (i * 2)))
+                    Palette[i] = GBLightGray;
+                else if (TestBit(colors, 1 + (i * 2)))
+                    Palette[i] = GBDarkGray;
+                else
+                    Palette[i] = GBWhite; 
+            }
         }
 
         internal void Step(int ticks)
@@ -149,7 +166,14 @@ namespace SharpDMG.Emulation
                 TileSet[i] = new GBTile();
                 TileSet[i].Pixels = Memory.ReadVRAMTile(i);
                 TileSet[i].UpdateRaster(Palette);
-                //TileSet[i].Raster.Save("tiledump/" + i + ".bmp");
+            }
+        }
+
+        public void DumpTiles()
+        {
+            for(int i =0;i<384;i++)
+            {
+                TileSet[i].Raster.Save("tiledump/" + i + ".bmp");
             }
         }
 
@@ -169,6 +193,7 @@ namespace SharpDMG.Emulation
 
         private void RenderScan()
         {
+            //UpdatePalette();
             UpdateTiles();
             Graphics g = Graphics.FromImage(FrameBuffer);
             g.DrawImage(UpdateBackgroundMap(), ScrollX, ScrollY);
