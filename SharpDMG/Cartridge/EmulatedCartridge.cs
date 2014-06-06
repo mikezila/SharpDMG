@@ -7,56 +7,12 @@ using System.IO;
 
 namespace SharpDMG.Cartridge
 {
-    class EmulatedCartridge : ICartridge
-    {
-        private ICartridge cartridge;
-
-        public byte[] VRAM { get { return new byte[1]; } }
-        public byte[] OAM { get { return new byte[1]; } }
-
-        public EmulatedCartridge(string filename)
-        {
-            byte[] ROM = File.ReadAllBytes(filename);
-            if (ROM[0x0147] == (byte)MBCType.RomOnly)
-                cartridge = new RomOnlyCartridge(ROM);
-            else
-                throw new NotImplementedException("Only RomOnly emulated cartridges are supported for now.  Try using Tetris.");
-        }
-
-        public byte ReadByte(ushort address)
-        {
-            return cartridge.ReadByte(address);
-        }
-
-        public void WriteByte(ushort address, byte data)
-        {
-            cartridge.WriteByte(address, data);
-        }
-
-        public void WriteWord(ushort address, ushort data)
-        {
-            cartridge.WriteWord(address, data);
-        }
-
-        public byte[] ReadVRAMTile(int tileIndex)
-        {
-            byte[] data = new byte[16];
-
-            for (int i = 0; i < 16; i++)
-            {
-                data[i] = cartridge.VRAM[i + (16 * tileIndex)];
-            }
-            return data;
-        }
-
-    }
-
     // No MBC or extra RAM.  Like Tetris.
-    class RomOnlyCartridge : ICartridge
+    class EmulatedCartridge
     {
-        private byte[] ROM { get; set; }
-        private byte[] RAM { get; set; }
-        private byte[] ZeroPage { get; set; }
+        public byte[] ROM { get; set; }
+        public byte[] RAM { get; set; }
+        public byte[] ZeroPage { get; set; }
         public byte[] VRAM { get; set; }
         public byte[] OAM { get; set; }
         public byte[] HARDWAREIO { get; set; }
@@ -66,9 +22,9 @@ namespace SharpDMG.Cartridge
 
         private bool biosActive = true;
 
-        public RomOnlyCartridge(byte[] rom)
+        public EmulatedCartridge(string path)
         {
-            this.ROM = rom;
+            ROM = File.ReadAllBytes(path);
 
             // Internal RAM only, no extra in cartridge.
             RAM = new byte[0x2000];
@@ -82,7 +38,13 @@ namespace SharpDMG.Cartridge
 
         public byte[] ReadVRAMTile(int tileIndex)
         {
-            return new byte[1];
+            byte[] data = new byte[16];
+
+            for (int i = 0; i < 16; i++)
+            {
+                data[i] = VRAM[i + (16 * tileIndex)];
+            }
+            return data;
         }
 
         public byte ReadByte(ushort address)
@@ -105,12 +67,6 @@ namespace SharpDMG.Cartridge
                 return InterruptRegister;
             else
                 throw new Exception("ROM/RAM read out of range.");
-        }
-
-        public void WriteWord(ushort address, ushort data)
-        {
-            WriteByte(address, (byte)(data & 0xFF));
-            WriteByte((ushort)(address - 1), (byte)(data >> 8));
         }
 
         public void WriteByte(ushort address, byte data)

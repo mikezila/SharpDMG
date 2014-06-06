@@ -11,6 +11,8 @@ namespace SharpDMG.Emulation
     class GameBoyGPU
     {
         public Bitmap FrameBuffer { get; private set; }
+        private Graphics g;
+
         Mode GPUMode { get; set; }
         int ModeClock { get; set; }
         int Line { get; set; }
@@ -33,7 +35,7 @@ namespace SharpDMG.Emulation
         private Color[] Palette { get; set; }
 
         // Main memory
-        private ICartridge Memory { get; set; }
+        private EmulatedCartridge Memory { get; set; }
 
         enum Mode
         {
@@ -43,7 +45,7 @@ namespace SharpDMG.Emulation
             VBlank = 1
         }
 
-        public GameBoyGPU(ICartridge memory)
+        public GameBoyGPU(EmulatedCartridge memory)
         {
             Memory = memory;
             Reset();
@@ -52,6 +54,7 @@ namespace SharpDMG.Emulation
         private void Reset()
         {
             FrameBuffer = new Bitmap(160, 144);
+            g = Graphics.FromImage(FrameBuffer);
             TileSet = new GBTile[385];
             BlackScreen();
             GPUMode = Mode.HBlank;
@@ -64,6 +67,12 @@ namespace SharpDMG.Emulation
             Palette[1] = GBLightGray;
             Palette[2] = GBDarkGray;
             Palette[3] = GBBlack;
+
+            for (int i = 0; i < 384; i++)
+            {
+                TileSet[i] = new GBTile();
+            }
+
         }
 
         private static bool TestBit(byte subject, int bit)
@@ -163,9 +172,7 @@ namespace SharpDMG.Emulation
         {
             for (int i = 0; i < 384; i++)
             {
-                TileSet[i] = new GBTile();
-                TileSet[i].Pixels = Memory.ReadVRAMTile(i);
-                TileSet[i].UpdateRaster(Palette);
+                TileSet[i].UpdateRaster(Memory.ReadVRAMTile(i), Palette);
             }
         }
 
@@ -193,9 +200,9 @@ namespace SharpDMG.Emulation
 
         private void RenderScan()
         {
-            //UpdatePalette();
+            UpdatePalette();
             UpdateTiles();
-            Graphics g = Graphics.FromImage(FrameBuffer);
+            
             g.DrawImage(UpdateBackgroundMap(), ScrollX, ScrollY);
         }
     }

@@ -9,7 +9,7 @@ namespace SharpDMG.Emulation
     {
         //Gameboy Cartridge
         //Can be either a real or emulated cartridge.
-        ICartridge cartridge;
+        EmulatedCartridge cartridge;
 
         //Has shit become real?
         public bool Crashed { get; private set; }
@@ -19,9 +19,19 @@ namespace SharpDMG.Emulation
         //Registers
         byte a, b, c, d, e, h, l;
 
+        public byte A { get { return a; } }
+        public byte B { get { return b; } }
+        public byte C { get { return c; } }
+        public byte D { get { return d; } }
+        public byte E { get { return e; } }
+        public byte H { get { return h; } }
+        public byte L { get { return l; } }
+
         //Flags
         //This can be used directly or queried/changed via the bool properites
         byte f;
+
+        public byte F { get { return f; } }
 
         //Stack and program pointers
         public ushort PC { get; private set; }
@@ -108,7 +118,7 @@ namespace SharpDMG.Emulation
 
         #endregion
 
-        public Z80(ICartridge game)
+        public Z80(EmulatedCartridge game)
         {
             cartridge = game;
             Reset();
@@ -148,34 +158,6 @@ namespace SharpDMG.Emulation
         {
             CarryFlag = false;
             m = 1;
-        }
-
-        private void PushWordToStack(ushort data)
-        {
-            cartridge.WriteByte(--SP, (byte)(data & 0xFF));
-            cartridge.WriteByte(--SP, (byte)(data >> 8));
-            m = 4;
-        }
-
-        private void PopWordFromStack(ushort registerPair)
-        {
-            byte highByte = cartridge.ReadByte(SP++);
-            byte lowByte = cartridge.ReadByte(SP++);
-            registerPair = (ushort)(highByte << 8 | lowByte);
-            m = 4;
-        }
-
-        private void PushPCtoStack()
-        {
-            cartridge.WriteByte(--SP, (byte)(PC & 0xFF));
-            cartridge.WriteByte(--SP, (byte)(PC >> 8));
-        }
-
-        private void PopPCFromStack()
-        {
-            byte highByte = cartridge.ReadByte(SP++);
-            byte lowByte = cartridge.ReadByte(SP++);
-            PC = (ushort)(highByte << 8 | lowByte);
         }
 
         #endregion
@@ -337,9 +319,14 @@ namespace SharpDMG.Emulation
 
         private void RotateRegisterLeft(ref byte register)
         {
-            CarryFlag = (register << 1) > 255;
-            register = (byte)(((register << 1) | (register >> 7)) & 0xFF);
-            ZeroFlag = false;
+            bool prevCarry = CarryFlag;
+            byte copy = register;
+            CarryFlag = (copy << 1) > 255;
+            copy = (byte)(copy << 1);
+            if (prevCarry) copy++;
+
+            register = copy;
+
             SubtractionFlag = false;
             HalfCaryFlag = false;
             m = 1;
@@ -347,7 +334,7 @@ namespace SharpDMG.Emulation
 
         private void RotateRegisterRight(ref byte register)
         {
-            CarryFlag = (register >> 1) > 255;
+            bool prevCarry = CarryFlag;
             register = (byte)((register >> 1) | (register << 7));
             ZeroFlag = false;
             SubtractionFlag = false;
@@ -632,10 +619,45 @@ namespace SharpDMG.Emulation
 
         #region 16-bit Load/Store
 
-        private void StoreStackPointerAtAddress(ushort address)
+        private void StoreStackPointerAtAddress()
         {
-            cartridge.WriteWord(NextWord, SP);
+            ushort address = NextWord;
+            cartridge.WriteByte(address++,(byte)(SP>>8));
+            cartridge.WriteByte(address, (byte)(SP & 0xFF));
             m = 5;
+        }
+
+        private void PushWordToStack(ushort data)
+        {
+            cartridge.WriteByte(--SP, (byte)(data >> 8));
+            cartridge.WriteByte(--SP, (byte)(data & 0xFF));
+
+            m = 4;
+        }
+
+        private ushort PopWordFromStack()
+        {
+            byte lowByte = cartridge.ReadByte(SP++);
+            byte highByte = cartridge.ReadByte(SP++);
+            ushort registerPair = (ushort)(highByte << 8 | lowByte);
+            m = 4;
+
+            return registerPair;
+        }
+
+        private void PushPCtoStack()
+        {
+            cartridge.WriteByte(--SP, (byte)(PC >> 8));
+            cartridge.WriteByte(--SP, (byte)(PC & 0xFF));
+
+        }
+
+        private void PopPCFromStack()
+        {
+            byte lowByte = cartridge.ReadByte(SP++);
+            byte highByte = cartridge.ReadByte(SP++);
+
+            PC = (ushort)(highByte << 8 | lowByte);
         }
 
         #endregion
@@ -1272,7 +1294,7 @@ namespace SharpDMG.Emulation
 
                 // Three byte ops
                 case 0x01: { BC = NextWord; m = 3; break; }
-                case 0x08: { StoreStackPointerAtAddress(NextWord); break; }
+                case 0x08: { StoreStackPointerAtAddress(); break; }
                 case 0x11: { DE = NextWord; m = 3; break; }
                 case 0x21: { HL = NextWord; m = 3; break; }
                 case 0x31: { SP = NextWord; m = 3; break; }
@@ -1292,13 +1314,13 @@ namespace SharpDMG.Emulation
                     }
 
                 // One byte ops
-                case 0xC1: { PopWordFromStack(BC); break; }
+                case 0xC1: { BC = PopWordFromStack(); break; }
                 case 0xC5: { PushWordToStack(BC); break; }
-                case 0xD1: { PopWordFromStack(DE); break; }
+                case 0xD1: { DE = PopWordFromStack(); break; }
                 case 0xD5: { PushWordToStack(DE); break; }
-                case 0xE1: { PopWordFromStack(HL); break; }
+                case 0xE1: { HL = PopWordFromStack(); break; }
                 case 0xE5: { PushWordToStack(HL); break; }
-                case 0xF1: { PopWordFromStack(AF); break; }
+                case 0xF1: { AF = PopWordFromStack(); break; }
                 case 0xF5: { PushWordToStack(AF); break; }
                 case 0xF9:
                     { // Load SP from HL direct.
@@ -1309,7 +1331,7 @@ namespace SharpDMG.Emulation
 
                 #endregion
 
-                // 16-bit Math/Logic
+                #region 16-bit Math/Logic
 
                 // One byte ops
                 case 0x03: { BC++; m = 2; break; }
@@ -1328,6 +1350,8 @@ namespace SharpDMG.Emulation
                 // Two byte op
                 case 0xE8: { AddRelativeToSP(); break; }
 
+                #endregion
+
                 // Non-CB bit level ops
                 case 0x07:
                 case 0x0F:
@@ -1335,7 +1359,7 @@ namespace SharpDMG.Emulation
                         throw new NotImplementedException("Missing Opcode: " + op.ToString("X2"));
                     }
                 case 0x17: { RotateRegisterLeft(ref a); break; }
-                case 0x1F: { RotateRegisterRight(ref a); break; }
+                case 0x1F: //{ RotateRegisterRight(ref a); break; }
 
 
                 // Shit has become real

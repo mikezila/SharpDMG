@@ -9,13 +9,17 @@ namespace SharpDMG.Emulation
 {
     class GBTile
     {
-        public byte[] Pixels { get; set; }
+        public byte[] Pixels { get; private set; }
+        private Color[] prevPalette { get; set; }
         public Bitmap Raster { get; private set; }
+
+        public bool Dirty { get; set; }
 
         public GBTile()
         {
             Raster = new Bitmap(8, 8);
             Pixels = new byte[16];
+            prevPalette = new Color[4];
         }
 
         //Row is zero-indexed, from the top.  So 0-7.
@@ -34,8 +38,16 @@ namespace SharpDMG.Emulation
             return (subject & (1 << bit)) != 0;
         }
 
-        public void UpdateRaster(Color[] palette)
+        public void UpdateRaster(byte[] rawPixels, Color[] palette)
         {
+            Dirty = (!Enumerable.SequenceEqual(Pixels, rawPixels) || !Enumerable.SequenceEqual(prevPalette, palette));
+
+            if (!Dirty)
+                return;
+
+            Pixels = rawPixels;
+            prevPalette = palette;
+
             // Work out the intensity (0-3) of a pixel based on the bytes and store that
             // in an array we can use to fill the bitmap using a palette.
             int[] colors = new int[64];
@@ -62,6 +74,8 @@ namespace SharpDMG.Emulation
                 {
                     Raster.SetPixel(x, y, palette[colors[pixel++]]);
                 }
+
+            Dirty = false;
         }
     }
 }

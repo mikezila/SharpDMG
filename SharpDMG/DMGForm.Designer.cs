@@ -33,22 +33,33 @@
             this.stepTenButton = new System.Windows.Forms.Button();
             this.stepHundredButton = new System.Windows.Forms.Button();
             this.stepThousandButton = new System.Windows.Forms.Button();
+            this.memoryDumpTabs = new System.Windows.Forms.TabControl();
+            this.ramView = new System.Windows.Forms.TabPage();
+            this.ramDumpTextBox = new System.Windows.Forms.TextBox();
+            this.vramDumpTab = new System.Windows.Forms.TabPage();
+            this.vramDumpTextBox = new System.Windows.Forms.TextBox();
+            this.dumpButton = new System.Windows.Forms.Button();
+            this.breakButton = new System.Windows.Forms.Button();
+            this.breakpointTextBox = new System.Windows.Forms.TextBox();
+            this.memoryDumpTabs.SuspendLayout();
+            this.ramView.SuspendLayout();
+            this.vramDumpTab.SuspendLayout();
             this.SuspendLayout();
             // 
             // consoleTextBox
             // 
             this.consoleTextBox.Cursor = System.Windows.Forms.Cursors.Arrow;
-            this.consoleTextBox.Location = new System.Drawing.Point(12, 325);
+            this.consoleTextBox.Location = new System.Drawing.Point(12, 320);
             this.consoleTextBox.Multiline = true;
             this.consoleTextBox.Name = "consoleTextBox";
             this.consoleTextBox.ReadOnly = true;
             this.consoleTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.consoleTextBox.Size = new System.Drawing.Size(281, 161);
+            this.consoleTextBox.Size = new System.Drawing.Size(251, 234);
             this.consoleTextBox.TabIndex = 0;
             // 
             // stepButton
             // 
-            this.stepButton.Location = new System.Drawing.Point(12, 492);
+            this.stepButton.Location = new System.Drawing.Point(12, 560);
             this.stepButton.Name = "stepButton";
             this.stepButton.Size = new System.Drawing.Size(75, 23);
             this.stepButton.TabIndex = 1;
@@ -58,7 +69,7 @@
             // 
             // stepTenButton
             // 
-            this.stepTenButton.Location = new System.Drawing.Point(94, 493);
+            this.stepTenButton.Location = new System.Drawing.Point(94, 561);
             this.stepTenButton.Name = "stepTenButton";
             this.stepTenButton.Size = new System.Drawing.Size(75, 23);
             this.stepTenButton.TabIndex = 2;
@@ -68,7 +79,7 @@
             // 
             // stepHundredButton
             // 
-            this.stepHundredButton.Location = new System.Drawing.Point(176, 493);
+            this.stepHundredButton.Location = new System.Drawing.Point(176, 561);
             this.stepHundredButton.Name = "stepHundredButton";
             this.stepHundredButton.Size = new System.Drawing.Size(75, 23);
             this.stepHundredButton.TabIndex = 3;
@@ -78,19 +89,103 @@
             // 
             // stepThousandButton
             // 
-            this.stepThousandButton.Location = new System.Drawing.Point(258, 493);
+            this.stepThousandButton.Location = new System.Drawing.Point(258, 561);
             this.stepThousandButton.Name = "stepThousandButton";
             this.stepThousandButton.Size = new System.Drawing.Size(59, 23);
             this.stepThousandButton.TabIndex = 4;
-            this.stepThousandButton.Text = "(1000)";
+            this.stepThousandButton.Text = "(10,000)";
             this.stepThousandButton.UseVisualStyleBackColor = true;
             this.stepThousandButton.Click += new System.EventHandler(this.stepThousandButton_Click);
+            // 
+            // memoryDumpTabs
+            // 
+            this.memoryDumpTabs.Controls.Add(this.ramView);
+            this.memoryDumpTabs.Controls.Add(this.vramDumpTab);
+            this.memoryDumpTabs.Location = new System.Drawing.Point(351, 29);
+            this.memoryDumpTabs.Name = "memoryDumpTabs";
+            this.memoryDumpTabs.SelectedIndex = 0;
+            this.memoryDumpTabs.Size = new System.Drawing.Size(535, 554);
+            this.memoryDumpTabs.TabIndex = 5;
+            // 
+            // ramView
+            // 
+            this.ramView.Controls.Add(this.ramDumpTextBox);
+            this.ramView.Location = new System.Drawing.Point(4, 22);
+            this.ramView.Name = "ramView";
+            this.ramView.Padding = new System.Windows.Forms.Padding(3);
+            this.ramView.Size = new System.Drawing.Size(527, 528);
+            this.ramView.TabIndex = 0;
+            this.ramView.Text = "RAM";
+            this.ramView.UseVisualStyleBackColor = true;
+            // 
+            // ramDumpTextBox
+            // 
+            this.ramDumpTextBox.Location = new System.Drawing.Point(6, 6);
+            this.ramDumpTextBox.Multiline = true;
+            this.ramDumpTextBox.Name = "ramDumpTextBox";
+            this.ramDumpTextBox.ReadOnly = true;
+            this.ramDumpTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.ramDumpTextBox.Size = new System.Drawing.Size(515, 516);
+            this.ramDumpTextBox.TabIndex = 0;
+            // 
+            // vramDumpTab
+            // 
+            this.vramDumpTab.Controls.Add(this.vramDumpTextBox);
+            this.vramDumpTab.Location = new System.Drawing.Point(4, 22);
+            this.vramDumpTab.Name = "vramDumpTab";
+            this.vramDumpTab.Padding = new System.Windows.Forms.Padding(3);
+            this.vramDumpTab.Size = new System.Drawing.Size(527, 528);
+            this.vramDumpTab.TabIndex = 1;
+            this.vramDumpTab.Text = "VRAM";
+            this.vramDumpTab.UseVisualStyleBackColor = true;
+            // 
+            // vramDumpTextBox
+            // 
+            this.vramDumpTextBox.Font = new System.Drawing.Font("Courier New", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.vramDumpTextBox.Location = new System.Drawing.Point(6, 6);
+            this.vramDumpTextBox.Multiline = true;
+            this.vramDumpTextBox.Name = "vramDumpTextBox";
+            this.vramDumpTextBox.ReadOnly = true;
+            this.vramDumpTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.vramDumpTextBox.Size = new System.Drawing.Size(515, 516);
+            this.vramDumpTextBox.TabIndex = 0;
+            // 
+            // dumpButton
+            // 
+            this.dumpButton.Location = new System.Drawing.Point(437, 0);
+            this.dumpButton.Name = "dumpButton";
+            this.dumpButton.Size = new System.Drawing.Size(108, 23);
+            this.dumpButton.TabIndex = 6;
+            this.dumpButton.Text = "Dump Memory";
+            this.dumpButton.UseVisualStyleBackColor = true;
+            this.dumpButton.Click += new System.EventHandler(this.dumpButton_Click);
+            // 
+            // breakButton
+            // 
+            this.breakButton.Location = new System.Drawing.Point(270, 320);
+            this.breakButton.Name = "breakButton";
+            this.breakButton.Size = new System.Drawing.Size(75, 23);
+            this.breakButton.TabIndex = 7;
+            this.breakButton.Text = "Break At:";
+            this.breakButton.UseVisualStyleBackColor = true;
+            this.breakButton.Click += new System.EventHandler(this.breakButton_Click);
+            // 
+            // breakpointTextBox
+            // 
+            this.breakpointTextBox.Location = new System.Drawing.Point(270, 350);
+            this.breakpointTextBox.Name = "breakpointTextBox";
+            this.breakpointTextBox.Size = new System.Drawing.Size(75, 20);
+            this.breakpointTextBox.TabIndex = 8;
             // 
             // DMGForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(329, 527);
+            this.ClientSize = new System.Drawing.Size(898, 595);
+            this.Controls.Add(this.breakpointTextBox);
+            this.Controls.Add(this.breakButton);
+            this.Controls.Add(this.dumpButton);
+            this.Controls.Add(this.memoryDumpTabs);
             this.Controls.Add(this.stepThousandButton);
             this.Controls.Add(this.stepHundredButton);
             this.Controls.Add(this.stepTenButton);
@@ -99,6 +194,11 @@
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Name = "DMGForm";
             this.Text = "SharpDMG";
+            this.memoryDumpTabs.ResumeLayout(false);
+            this.ramView.ResumeLayout(false);
+            this.ramView.PerformLayout();
+            this.vramDumpTab.ResumeLayout(false);
+            this.vramDumpTab.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -111,6 +211,14 @@
         private System.Windows.Forms.Button stepTenButton;
         private System.Windows.Forms.Button stepHundredButton;
         private System.Windows.Forms.Button stepThousandButton;
+        private System.Windows.Forms.TabControl memoryDumpTabs;
+        private System.Windows.Forms.TabPage ramView;
+        private System.Windows.Forms.TextBox ramDumpTextBox;
+        private System.Windows.Forms.TabPage vramDumpTab;
+        private System.Windows.Forms.TextBox vramDumpTextBox;
+        private System.Windows.Forms.Button dumpButton;
+        private System.Windows.Forms.Button breakButton;
+        private System.Windows.Forms.TextBox breakpointTextBox;
     }
 }
 

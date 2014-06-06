@@ -11,6 +11,8 @@ namespace SharpDMG.Emulation
     {
         public Z80 CPU { get; private set; }
         public GameBoyGPU GPU { get; private set; }
+        public EmulatedCartridge Memory { get; private set; }
+
         public string DebugState
         {
             get
@@ -21,6 +23,10 @@ namespace SharpDMG.Emulation
                 debugger.AppendLine("PC: " + CPU.PC.ToString("X4") + " SP: " + CPU.SP.ToString("X4"));
                 debugger.AppendLine("HL: " + CPU.HL.ToString("X4") + " BC: " + CPU.BC.ToString("X4"));
                 debugger.AppendLine("DE: " + CPU.DE.ToString("X4") + " AF: " + CPU.AF.ToString("X4"));
+                debugger.AppendLine("A: " + CPU.A.ToString("X2") + " F: " + CPU.F.ToString("X2"));
+                debugger.AppendLine("B: " + CPU.B.ToString("X2") + " C: " + CPU.C.ToString("X2"));
+                debugger.AppendLine("D: " + CPU.D.ToString("X2") + " E: " + CPU.E.ToString("X2"));
+                debugger.AppendLine("H: " + CPU.H.ToString("X2") + " L: " + CPU.L.ToString("X2"));
                 debugger.AppendLine("Flags: Z-" + CPU.ZeroFlag + " N-" + CPU.SubtractionFlag + " H-" + CPU.HalfCaryFlag + " C-" + CPU.CarryFlag);
                 debugger.AppendLine("Next OP: " + CPU.NextThreeBytes());
                 if (CPU.Crashed)
@@ -31,14 +37,20 @@ namespace SharpDMG.Emulation
 
         public DMGSystem()
         {
-            ICartridge memory = new EmulatedCartridge("tetris.gb");
-            CPU = new Z80(memory);
-            GPU = new GameBoyGPU(memory);
+            Memory = new EmulatedCartridge("tetris.gb");
+            CPU = new Z80(Memory);
+            GPU = new GameBoyGPU(Memory);
         }
 
         public void Step(int steps)
         {
             for (int i = 0; i < steps; i++)
+                Step();
+        }
+
+        public void StepUntil(ushort PC)
+        {
+            while (CPU.PC != PC)
                 Step();
         }
 
