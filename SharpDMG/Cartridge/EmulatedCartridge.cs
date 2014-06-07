@@ -8,19 +8,19 @@ using System.IO;
 namespace SharpDMG.Cartridge
 {
     // No MBC or extra RAM.  Like Tetris.
-    class EmulatedCartridge
+    class EmulatedCartridge : ICartridge
     {
-        public byte[] ROM { get; set; }
-        public byte[] RAM { get; set; }
-        public byte[] ZeroPage { get; set; }
-        public byte[] VRAM { get; set; }
-        public byte[] OAM { get; set; }
-        public byte[] HARDWAREIO { get; set; }
-        public byte InterruptRegister { get; set; }
+        private byte[] ROM { get; set; }
+        private byte[] RAM { get; set; }
+        private byte[] ZeroPage { get; set; }
+        public byte[] VRAM { get; private set; }
+        private byte[] OAM { get; set; }
+        private byte[] HARDWAREIO { get; set; }
+        private byte InterruptRegister { get; set; }
 
         private byte[] BIOS { get; set; }
 
-        private bool biosActive = true;
+        private bool biosActive = false;
 
         public EmulatedCartridge(string path)
         {
@@ -30,7 +30,6 @@ namespace SharpDMG.Cartridge
             RAM = new byte[0x2000];
             ZeroPage = new byte[128];
             VRAM = new byte[0x2000];
-            //VRAM = File.ReadAllBytes("tetris.dump");
             OAM = new byte[160];
             HARDWAREIO = new byte[128];
             BIOS = File.ReadAllBytes("bios.bin");

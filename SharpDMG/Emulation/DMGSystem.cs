@@ -11,7 +11,7 @@ namespace SharpDMG.Emulation
     {
         public Z80 CPU { get; private set; }
         public GameBoyGPU GPU { get; private set; }
-        public EmulatedCartridge Memory { get; private set; }
+        public ICartridge Memory { get; private set; }
 
         public string DebugState
         {
@@ -37,20 +37,33 @@ namespace SharpDMG.Emulation
 
         public DMGSystem()
         {
-            Memory = new EmulatedCartridge("tetris.gb");
+            //Memory = new EmulatedCartridge("tetris.gb");
+            Memory = new RealCartridge("COM3");
             CPU = new Z80(Memory);
             GPU = new GameBoyGPU(Memory);
-        }
-
-        public void Step(int steps)
-        {
-            for (int i = 0; i < steps; i++)
-                Step();
         }
 
         public void StepUntil(ushort PC)
         {
             while (CPU.PC != PC)
+                Step();
+        }
+
+        public void Step(int steps)
+        {
+            if (GPU.VBlankFired)
+            {
+                GPU.VBlankFired = false;
+                CPU.VBlankWaiting = true;
+            }
+
+            if (GPU.HBlankFired)
+            {
+                GPU.HBlankFired = false;
+                CPU.HBlankWaiting = true;
+            }
+
+            for (int i = 0; i < steps; i++)
                 Step();
         }
 

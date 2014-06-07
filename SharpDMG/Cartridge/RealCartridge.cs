@@ -8,10 +8,19 @@ namespace SharpDMG.Cartridge
 {
     // This provides a link to a real GameBoy cartridge.
 
-    public class RealCartridge //: ICartridge, IDisposable
+    public class RealCartridge : ICartridge, IDisposable
     {
-        public string GameName { get; private set; }
-        public int RomSize { get; private set; }
+        private byte[] RAM { get; set; }
+        private byte[] ZeroPage { get; set; }
+        public byte[] VRAM { get; private set; }
+        private byte[] OAM { get; set; }
+        private byte[] HARDWAREIO { get; set; }
+        private byte InterruptRegister { get; set; }
+
+        private byte[] BIOS { get; set; }
+
+        private bool biosActive = true;
+
         private SerialPort cartridge;
 
         // Number of bytes to request at a time when
@@ -20,51 +29,18 @@ namespace SharpDMG.Cartridge
 
         public RealCartridge(string portName = "COM3")
         {
-            cartridge = new SerialPort(portName, 128000);
+            cartridge = new SerialPort(portName, 9600);
             this.Open();
-        }
 
-        private string ReadGamename()
-        {
-            const int TITLE_LENGTH = 16;
+            SwitchBank(1);
 
-            byte[] rawName = ReadBytes(0x0134, TITLE_LENGTH);
-
-            return System.Text.Encoding.UTF8.GetString(rawName).Trim();
-        }
-
-        private void DumpRamBank()
-        {
-            List<byte> dumpedRom = new List<byte>();
-            for (int i = 0xA000; i < 0xBFFF; i += blockSize)
-                dumpedRom.AddRange(ReadBytes(i, blockSize));
-            File.WriteAllBytes("dump.gb", dumpedRom.ToArray());
-        }
-
-        private void DumpBank0()
-        {
-            List<byte> dumpedRom = new List<byte>();
-            for (int i = 0x000; i < 0x3FFF; i += blockSize)
-                dumpedRom.AddRange(ReadBytes(i, blockSize));
-            File.WriteAllBytes("dump.gb", dumpedRom.ToArray());
-        }
-
-        private void DumpSwitchedBank(int bank)
-        {
-            SwitchBank(bank);
-
-            List<byte> dumpedBank = new List<byte>();
-            for (int i = 0x4000; i < 0x7FFF; i += blockSize)
-                dumpedBank.AddRange(ReadBytes(i, blockSize));
-
-            using (var RomFile = File.OpenWrite("dump.gb"))
-            {
-                RomFile.Seek(0, SeekOrigin.End);
-                foreach (byte gbByte in dumpedBank)
-                {
-                    RomFile.WriteByte(gbByte);
-                }
-            }
+            // Internal RAM only, no extra in cartridge.
+            RAM = new byte[0x2000];
+            ZeroPage = new byte[128];
+            VRAM = new byte[0x2000];
+            OAM = new byte[160];
+            HARDWAREIO = new byte[128];
+            BIOS = File.ReadAllBytes("bios.bin");
         }
 
         private void SwitchBank(int bank)
@@ -87,7 +63,7 @@ namespace SharpDMG.Cartridge
             cartridge.Write(buffer, 0, 4);
         }
 
-        private byte[] ReadBytes(int address, int count)
+        private byte[] ReadBytes(ushort address, int count)
         {
             byte[] buffer = new byte[4];
             buffer[0] = (byte)address;
@@ -102,7 +78,58 @@ namespace SharpDMG.Cartridge
             return incoming;
         }
 
-        public byte ReadByte(int address)
+        public byte[] ReadVRAMTile(int tileIndex)
+        {
+            byte[] data = new byte[16];
+
+            for (int i = 0; i < 16; i++)
+            {
+                data[i] = VRAM[i + (16 * tileIndex)];
+            }
+            return data;
+        }
+
+        public byte ReadByte(ushort address)
+        {
+            if (biosActive && address < 0x100)
+                return BIOS[address];
+            else if (address < 0x8000)
+                return ReadCartridgeByte(address);
+            else if (address >= 0xC000 && address < 0xE000)
+                return RAM[address - 0xC000];
+            else if (address >= 0xFF80 && address < 0xFFFF)
+                return ZeroPage[address - 0xFF80];
+            else if (address >= 0x8000 && address < 0xA000)
+                return VRAM[address - 0x8000];
+            else if (address >= 0xFE00 && address < 0xFEA0)
+                return OAM[address - 0xFE00];
+            else if (address >= 0xFF00 && address < 0xFF80)
+                return HARDWAREIO[address - 0xFF00];
+            else if (address == 0xFFFF)
+                return InterruptRegister;
+            else
+                throw new Exception("ROM/RAM read out of range.");
+        }
+
+        public void WriteByte(ushort address, byte data)
+        {
+            if (address >= 0xC000 && address < 0xE000)
+                RAM[address - 0xC000] = data;
+            else if (address >= 0xFF80 && address < 0xFFFF)
+                ZeroPage[address - 0xFF80] = data;
+            else if (address >= 0x8000 && address < 0xA000)
+                VRAM[address - 0x8000] = data;
+            else if (address >= 0xFE00 && address < 0xFEA0)
+                OAM[address - 0xFE00] = data;
+            else if (address >= 0xFF00 && address < 0xFF80)
+                HARDWAREIO[address - 0xFF00] = data;
+            else if (address == 0xFFFF)
+                InterruptRegister = data;
+            else
+                throw new Exception("RAM write was out of range, or MBC switch was tried on non-MBC cartridge.");
+        }
+
+        public byte ReadCartridgeByte(ushort address)
         {
             byte[] buffer = new byte[4];
             buffer[0] = (byte)address;
@@ -111,15 +138,13 @@ namespace SharpDMG.Cartridge
             buffer[3] = 0x02;
             cartridge.Write(buffer, 0, 4);
             byte data = (byte)cartridge.ReadByte();
+
+            //Console.WriteLine("Read byte: " + data.ToString("X2") + " at " + address.ToString("X4"));
+
             return data;
         }
 
-        public void WriteByte(int address, byte data)
-        {
-            throw new NotImplementedException("Writing bytes to real cartridge is not supported yet.");
-        }
-
-        public void WriteWord(int address, short data)
+        public void WriteCartridgeByte(ushort address, byte data)
         {
             throw new NotImplementedException("Writing bytes to real cartridge is not supported yet.");
         }

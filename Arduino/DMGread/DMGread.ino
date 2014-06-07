@@ -38,7 +38,7 @@ void setup() {
   // put your setup code here, to run once:
   // Data Pins 0-7: 39 41 43 45 47 49 51 53
   // Adr Pins 0-15: 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52
-  // RD/WR = 11/10
+  // RD/WR/CL = 11/10/7
 
   pinMode(WR, OUTPUT);
   pinMode(RD, OUTPUT);
@@ -66,7 +66,7 @@ void setup() {
   pinMode(address15, OUTPUT);
 
   // Fastest baud that works reliably.
-  Serial.begin(128000);
+  Serial.begin(9600);
 
   // Default to reading ROM
   digitalWrite(RD, LOW);

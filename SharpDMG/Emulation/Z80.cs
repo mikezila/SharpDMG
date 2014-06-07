@@ -9,7 +9,7 @@ namespace SharpDMG.Emulation
     {
         //Gameboy Cartridge
         //Can be either a real or emulated cartridge.
-        EmulatedCartridge cartridge;
+        ICartridge cartridge;
 
         //Has shit become real?
         public bool Crashed { get; private set; }
@@ -44,6 +44,10 @@ namespace SharpDMG.Emulation
         //Cycle timers
         public int m { get; private set; }
         public int t { get { return m * 4; } }
+
+        //Interrupts
+        public bool VBlankWaiting { get; set; }
+        public bool HBlankWaiting { get; set; }
 
         #region Shortcut properites for double registers and next byte/word
         public bool ZeroFlag
@@ -118,7 +122,7 @@ namespace SharpDMG.Emulation
 
         #endregion
 
-        public Z80(EmulatedCartridge game)
+        public Z80(ICartridge game)
         {
             cartridge = game;
             Reset();
@@ -127,6 +131,9 @@ namespace SharpDMG.Emulation
         private void Reset()
         {
             Crashed = false;
+            InteruptsEnabled = true;
+            VBlankWaiting = false;
+            HBlankWaiting = false;
             a = 0;
             b = 0;
             c = 0;
@@ -677,6 +684,16 @@ namespace SharpDMG.Emulation
 
         #region Jumps/Calls
 
+        private void VBlankJump()
+        {
+            Console.WriteLine("Vblank happened.");
+            PushPCtoStack();
+            VBlankWaiting = false;
+            InteruptsEnabled = false;
+            PC = 0x0040;
+            m = 3;
+        }
+
         private void JumpRelative()
         {
             JumpRelativeHelper();
@@ -921,7 +938,8 @@ namespace SharpDMG.Emulation
         private void ReturnFromI()
         {
             PopPCFromStack();
-            m = 4;
+            InteruptsEnabled = true;
+            m = 3;
         }
 
         private void ReturnNotZero()
@@ -980,6 +998,9 @@ namespace SharpDMG.Emulation
 
         internal void Step()
         {
+            if (VBlankWaiting)
+                VBlankJump();
+
             byte op = NextByte;
             switch (op)
             {

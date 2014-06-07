@@ -13,10 +13,13 @@ namespace SharpDMG.Emulation
         public Bitmap FrameBuffer { get; private set; }
         private Graphics g;
 
-        Mode GPUMode { get; set; }
+        public Mode GPUMode { get; private set; }
         int ModeClock { get; set; }
         int Line { get; set; }
-        public bool NewFrame { get; private set; }
+
+        // Interrupts
+        public bool VBlankFired { get; set; }
+        public bool HBlankFired { get; set; }
 
         // Scroll registers
         public int ScrollX { get; set; }
@@ -35,9 +38,9 @@ namespace SharpDMG.Emulation
         private Color[] Palette { get; set; }
 
         // Main memory
-        private EmulatedCartridge Memory { get; set; }
+        private ICartridge Memory { get; set; }
 
-        enum Mode
+        public enum Mode
         {
             ScanLineOAM = 2,
             ScanLineVRAM = 3,
@@ -45,7 +48,7 @@ namespace SharpDMG.Emulation
             VBlank = 1
         }
 
-        public GameBoyGPU(EmulatedCartridge memory)
+        public GameBoyGPU(ICartridge memory)
         {
             Memory = memory;
             Reset();
@@ -59,7 +62,10 @@ namespace SharpDMG.Emulation
             BlackScreen();
             GPUMode = Mode.HBlank;
             ModeClock = 0;
-            NewFrame = false;
+            Line = 0;
+
+            VBlankFired = false;
+            HBlankFired = false;
 
             Palette = new Color[4];
 
@@ -118,7 +124,7 @@ namespace SharpDMG.Emulation
                         {
                             ModeClock = 0;
                             GPUMode = Mode.HBlank;
-
+                            HBlankFired = true;
                             RenderScan();
                         }
                         break;
@@ -133,7 +139,7 @@ namespace SharpDMG.Emulation
                             if (Line == 143)
                             {
                                 GPUMode = Mode.VBlank;
-                                NewFrame = true;
+                                VBlankFired = true;
                             }
                         }
                         else
