@@ -91,9 +91,9 @@
             // 
             this.stepThousandButton.Location = new System.Drawing.Point(258, 561);
             this.stepThousandButton.Name = "stepThousandButton";
-            this.stepThousandButton.Size = new System.Drawing.Size(59, 23);
+            this.stepThousandButton.Size = new System.Drawing.Size(71, 23);
             this.stepThousandButton.TabIndex = 4;
-            this.stepThousandButton.Text = "(10,000)";
+            this.stepThousandButton.Text = "Step (10k)";
             this.stepThousandButton.UseVisualStyleBackColor = true;
             this.stepThousandButton.Click += new System.EventHandler(this.stepThousandButton_Click);
             // 
