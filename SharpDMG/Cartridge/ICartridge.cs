@@ -6,19 +6,19 @@ using System.Threading.Tasks;
 
 namespace SharpDMG.Cartridge
 {
-    public enum SuperGameBoyFunctions
+    public enum SuperGameBoyFunctions : byte
     {
         GameBoy = 0x00,
         SuperGameBoy = 0x03
     }
 
-    public enum GameBoyColorFunctions
+    public enum GameBoyColorFunctions : byte
     {
         GameBoy = 0x00,
         GameBoyColor = 0x80
     }
 
-    public enum ROMBankCount
+    public enum ROMBankCount : byte
     {
         Two = 0x00,
         Four = 0x01,
@@ -32,7 +32,7 @@ namespace SharpDMG.Cartridge
         NinteySix = 0x54
     }
 
-    public enum RAMBankCount
+    public enum RAMBankCount : byte
     {
         None = 0x00,
         One2KB = 0x01,
@@ -41,7 +41,7 @@ namespace SharpDMG.Cartridge
         Sixteen = 0x04
     }
 
-    public enum Region
+    public enum Region : byte
     {
         Japan = 0x00,
         World = 0x01

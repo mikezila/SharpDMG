@@ -29,7 +29,7 @@ namespace SharpDMG.Emulation
 
         //Flags
         //This can be used directly or queried/changed via the bool properites
-        byte f;
+        private byte f;
 
         public byte F { get { return f; } }
 
