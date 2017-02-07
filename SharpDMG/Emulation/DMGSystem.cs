@@ -37,8 +37,8 @@ namespace SharpDMG.Emulation
 
         public DMGSystem()
         {
-            //Memory = new EmulatedCartridge("tetris.gb");
-            Memory = new RealCartridge("COM3");
+            Memory = new EmulatedCartridge("tetris.gb");
+            //Memory = new RealCartridge("COM3");
             CPU = new Z80(Memory);
             GPU = new GameBoyGPU(Memory);
         }

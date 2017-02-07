@@ -16,7 +16,7 @@ namespace SharpDMG.Cartridge
 
         private byte[] BIOS { get; set; }
 
-        private bool biosActive = false;
+        private bool biosActive = true;
 
         public EmulatedCartridge(string path)
         {
