@@ -75,6 +75,8 @@ namespace SharpDMG
         private void breakButton_Click(object sender, EventArgs e)
         {
             system.StepUntil(ushort.Parse(breakpointTextBox.Text, System.Globalization.NumberStyles.HexNumber));
+            consoleTextBox.Text = system.DebugState;
+            g.DrawImage(system.GPU.FrameBuffer, 0, 0, 160 * 2, 144 * 2);
         }
 
     }

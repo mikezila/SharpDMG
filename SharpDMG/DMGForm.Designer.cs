@@ -101,10 +101,10 @@
             // 
             this.memoryDumpTabs.Controls.Add(this.ramView);
             this.memoryDumpTabs.Controls.Add(this.vramDumpTab);
-            this.memoryDumpTabs.Location = new System.Drawing.Point(351, 29);
+            this.memoryDumpTabs.Location = new System.Drawing.Point(351, 12);
             this.memoryDumpTabs.Name = "memoryDumpTabs";
             this.memoryDumpTabs.SelectedIndex = 0;
-            this.memoryDumpTabs.Size = new System.Drawing.Size(535, 554);
+            this.memoryDumpTabs.Size = new System.Drawing.Size(535, 571);
             this.memoryDumpTabs.TabIndex = 5;
             // 
             // ramView
@@ -113,7 +113,7 @@
             this.ramView.Location = new System.Drawing.Point(4, 22);
             this.ramView.Name = "ramView";
             this.ramView.Padding = new System.Windows.Forms.Padding(3);
-            this.ramView.Size = new System.Drawing.Size(527, 528);
+            this.ramView.Size = new System.Drawing.Size(527, 545);
             this.ramView.TabIndex = 0;
             this.ramView.Text = "RAM";
             this.ramView.UseVisualStyleBackColor = true;
@@ -131,10 +131,11 @@
             // vramDumpTab
             // 
             this.vramDumpTab.Controls.Add(this.vramDumpTextBox);
+            this.vramDumpTab.Controls.Add(this.dumpButton);
             this.vramDumpTab.Location = new System.Drawing.Point(4, 22);
             this.vramDumpTab.Name = "vramDumpTab";
             this.vramDumpTab.Padding = new System.Windows.Forms.Padding(3);
-            this.vramDumpTab.Size = new System.Drawing.Size(527, 528);
+            this.vramDumpTab.Size = new System.Drawing.Size(527, 545);
             this.vramDumpTab.TabIndex = 1;
             this.vramDumpTab.Text = "VRAM";
             this.vramDumpTab.UseVisualStyleBackColor = true;
@@ -142,17 +143,17 @@
             // vramDumpTextBox
             // 
             this.vramDumpTextBox.Font = new System.Drawing.Font("Courier New", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.vramDumpTextBox.Location = new System.Drawing.Point(6, 6);
+            this.vramDumpTextBox.Location = new System.Drawing.Point(6, 36);
             this.vramDumpTextBox.Multiline = true;
             this.vramDumpTextBox.Name = "vramDumpTextBox";
             this.vramDumpTextBox.ReadOnly = true;
             this.vramDumpTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.vramDumpTextBox.Size = new System.Drawing.Size(515, 516);
+            this.vramDumpTextBox.Size = new System.Drawing.Size(515, 486);
             this.vramDumpTextBox.TabIndex = 0;
             // 
             // dumpButton
             // 
-            this.dumpButton.Location = new System.Drawing.Point(437, 0);
+            this.dumpButton.Location = new System.Drawing.Point(6, 7);
             this.dumpButton.Name = "dumpButton";
             this.dumpButton.Size = new System.Drawing.Size(108, 23);
             this.dumpButton.TabIndex = 6;
@@ -184,7 +185,6 @@
             this.ClientSize = new System.Drawing.Size(898, 595);
             this.Controls.Add(this.breakpointTextBox);
             this.Controls.Add(this.breakButton);
-            this.Controls.Add(this.dumpButton);
             this.Controls.Add(this.memoryDumpTabs);
             this.Controls.Add(this.stepThousandButton);
             this.Controls.Add(this.stepHundredButton);

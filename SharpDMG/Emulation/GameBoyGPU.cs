@@ -59,7 +59,6 @@ namespace SharpDMG.Emulation
             FrameBuffer = new Bitmap(160, 144);
             g = Graphics.FromImage(FrameBuffer);
             TileSet = new GBTile[385];
-            BlackScreen();
             GPUMode = Mode.HBlank;
             ModeClock = 0;
             Line = 0;
@@ -105,6 +104,8 @@ namespace SharpDMG.Emulation
 
         internal void Step(int ticks)
         {
+            RenderScan();
+            return;
             ModeClock += ticks;
 
             switch (GPUMode)
@@ -167,26 +168,11 @@ namespace SharpDMG.Emulation
             }
         }
 
-        private void BlackScreen()
-        {
-            for (int y = 0; y < FrameBuffer.Height; y++)
-                for (int x = 0; x < FrameBuffer.Width; x++)
-                    FrameBuffer.SetPixel(x, y, Color.Black);
-        }
-
         private void UpdateTiles()
         {
             for (int i = 0; i < 384; i++)
             {
                 TileSet[i].UpdateRaster(Memory.ReadVRAMTile(i), Palette);
-            }
-        }
-
-        public void DumpTiles()
-        {
-            for(int i =0;i<384;i++)
-            {
-                TileSet[i].Raster.Save("tiledump/" + i + ".bmp");
             }
         }
 
@@ -201,6 +187,7 @@ namespace SharpDMG.Emulation
                     g.DrawImage(TileSet[Memory.ReadByte((ushort)(0x9800 + tile))].Raster, new Point(y * 8, x * 8));
                     tile++;
                 }
+            g.Dispose();
             return background;
         }
 

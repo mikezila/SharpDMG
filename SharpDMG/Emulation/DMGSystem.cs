@@ -46,7 +46,7 @@ namespace SharpDMG.Emulation
         public void StepUntil(ushort PC)
         {
             while (CPU.PC != PC)
-                Step();
+                Step(1);
         }
 
         public void Step(int steps)
